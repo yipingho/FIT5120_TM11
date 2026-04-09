@@ -1,6 +1,5 @@
 /**
  * Meal Maker — Game Screen
- * Assembles all game components into the final playable screen.
  */
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
@@ -35,6 +34,7 @@ interface PlateZone {
 
 export default function MealMakerScreen() {
   const router = useRouter();
+
   const {
     gamePhase,
     timeRemaining,
@@ -54,79 +54,61 @@ export default function MealMakerScreen() {
   const [plateZone, setPlateZone] = useState<PlateZone | null>(null);
   const plateWrapperRef = useRef<View>(null);
 
-  // ─── Audio ───────────────────────────────────────────────────────────────────
+  // ─── MENU AUDIO ONLY (FIXED) ────────────────────────────────────────────────
+
   const menuSoundRef = useRef<Audio.Sound | null>(null);
-  const roundSoundRef = useRef<Audio.Sound | null>(null);
-
-  const stopMenuMusic = useCallback(async () => {
-    if (menuSoundRef.current) {
-      try {
-        await menuSoundRef.current.stopAsync();
-        await menuSoundRef.current.unloadAsync();
-      } catch (_) {}
-      menuSoundRef.current = null;
-    }
-  }, []);
-
-  const stopRoundMusic = useCallback(async () => {
-    if (roundSoundRef.current) {
-      try {
-        await roundSoundRef.current.stopAsync();
-        await roundSoundRef.current.unloadAsync();
-      } catch (_) {}
-      roundSoundRef.current = null;
-    }
-  }, []);
+  const isMenuPlayingRef = useRef(false);
 
   const playMenuMusic = useCallback(async () => {
-    await stopMenuMusic();
-    await stopRoundMusic();
-    try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/audio/menu-audio.mp3'),
-        { isLooping: true, shouldPlay: true }
-      );
-      menuSoundRef.current = sound;
-    } catch (_) {}
-  }, [stopMenuMusic, stopRoundMusic]);
+    // Prevent duplicate playback
+    if (isMenuPlayingRef.current) return;
 
-  const playRoundMusic = useCallback(async () => {
-    await stopMenuMusic();
-    await stopRoundMusic();
     try {
-      const { sound } = await Audio.Sound.createAsync(
-        require('../../../assets/audio/round-audio.mp3'),
-        { isLooping: false, shouldPlay: true }
-      );
-      roundSoundRef.current = sound;
-    } catch (_) {}
-  }, [stopMenuMusic, stopRoundMusic]);
-
-  // Play menu music on focus (idle/game_over), stop all on blur
-  useFocusEffect(
-    useCallback(() => {
-      // Start menu music when screen gains focus (unless a round is already playing)
-      if (gamePhase !== 'playing') {
-        playMenuMusic();
+      // Clean up any existing sound just in case
+      if (menuSoundRef.current) {
+        await menuSoundRef.current.unloadAsync().catch(() => {});
+        menuSoundRef.current = null;
       }
 
-      return () => {
-        // Stop all music when navigating away
-        stopMenuMusic();
-        stopRoundMusic();
-      };
-    }, [stopMenuMusic, stopRoundMusic, playMenuMusic, gamePhase])
-  );
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/audio/menu-audio.mp3'),
+        {
+          isLooping: true,
+          shouldPlay: true,
+        }
+      );
 
-  // Switch music based on game phase
-  useEffect(() => {
-    if (gamePhase === 'playing') {
-      playRoundMusic();
-    } else if (gamePhase === 'idle' || gamePhase === 'game_over') {
-      stopRoundMusic();
+      menuSoundRef.current = sound;
+      isMenuPlayingRef.current = true;
+    } catch (_) {}
+  }, []);
+
+  const stopMenuMusic = useCallback(async () => {
+    const sound = menuSoundRef.current;
+    if (!sound) return;
+
+    try {
+      await sound.stopAsync();
+    } catch (_) {}
+
+    try {
+      await sound.unloadAsync();
+    } catch (_) {}
+
+    menuSoundRef.current = null;
+    isMenuPlayingRef.current = false;
+  }, []);
+
+  // Handle screen focus / blur correctly
+  useFocusEffect(
+    useCallback(() => {
       playMenuMusic();
-    }
-  }, [gamePhase]);
+
+      return () => {
+        stopMenuMusic();
+      };
+    }, [playMenuMusic, stopMenuMusic])
+  );
 
   // ─── Plate Layout ────────────────────────────────────────────────────────────
 
@@ -157,14 +139,11 @@ export default function MealMakerScreen() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <View style={styles.container}>
-        {/* HUD — Score & Timer (with back button to exit round) */}
         {gamePhase === 'playing' && (
           <ScoreDisplay score={totalScore} timeRemaining={timeRemaining} onBack={handleBack} />
         )}
 
-        {/* Game Field — ingredients render here, above the plate area */}
         <View style={styles.gameField}>
-          {/* Falling Ingredients — rendered with high zIndex to appear above plate */}
           {gamePhase === 'playing' &&
             activeIngredients.map((item) => (
               <FallingIngredient
@@ -179,7 +158,6 @@ export default function MealMakerScreen() {
               />
             ))}
 
-          {/* Idle State — Start Screen */}
           {gamePhase === 'idle' && (
             <View style={styles.idleContainer}>
               <Text style={styles.idleEmoji}>🍽️</Text>
@@ -197,10 +175,8 @@ export default function MealMakerScreen() {
           )}
         </View>
 
-        {/* Plate Area — sits below game field, but ingredients float above it via zIndex */}
         {(gamePhase === 'playing' || gamePhase === 'idle') && (
           <View style={styles.plateArea} ref={plateWrapperRef}>
-            {/* Meal Score Popup */}
             <MealScorePopup
               score={lastMealScore ?? 0}
               visible={showMealScore}
@@ -212,7 +188,6 @@ export default function MealMakerScreen() {
           </View>
         )}
 
-        {/* Game Over Overlay */}
         {gamePhase === 'game_over' && (
           <GameOverOverlay
             score={totalScore}
@@ -228,9 +203,7 @@ export default function MealMakerScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: Colors.surface,
@@ -238,7 +211,6 @@ const styles = StyleSheet.create({
   gameField: {
     flex: 1,
     position: 'relative',
-    // Do NOT use overflow: 'hidden' — it clips ingredients that overlap the plate area
     zIndex: 1,
   },
   plateArea: {
@@ -250,8 +222,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: Radius.lg,
     zIndex: 0,
   },
-
-  // Idle / Start Screen
   idleContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -259,9 +229,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xl,
     gap: Spacing.md,
   },
-  idleEmoji: {
-    fontSize: 80,
-  },
+  idleEmoji: { fontSize: 80 },
   idleTitle: {
     ...Typography.displaySmall,
     color: Colors.on_surface,

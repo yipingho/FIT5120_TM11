@@ -12,8 +12,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter, useFocusEffect } from 'expo-router';
-import { Audio } from 'expo-av';
+import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { Typography } from '../../constants/Typography';
 import { Spacing } from '../../constants/Spacing';
@@ -56,38 +55,6 @@ const GAMES: GameTile[] = [
 export default function GamesHubScreen() {
   const router = useRouter();
   const [highScores, setHighScores] = useState<Record<string, number>>({});
-  const menuSoundRef = useRef<Audio.Sound | null>(null);
-
-  const stopMenuMusic = useCallback(async () => {
-    if (menuSoundRef.current) {
-      try {
-        await menuSoundRef.current.stopAsync();
-        await menuSoundRef.current.unloadAsync();
-      } catch (_) {}
-      menuSoundRef.current = null;
-    }
-  }, []);
-
-  // Play menu music when this screen is focused, stop when it loses focus
-  useFocusEffect(
-    useCallback(() => {
-      const startMusic = async () => {
-        await stopMenuMusic();
-        try {
-          const { sound } = await Audio.Sound.createAsync(
-            require('../../assets/audio/menu-audio.mp3'),
-            { isLooping: true, shouldPlay: true }
-          );
-          menuSoundRef.current = sound;
-        } catch (_) {}
-      };
-      startMusic();
-
-      return () => {
-        stopMenuMusic();
-      };
-    }, [stopMenuMusic])
-  );
 
   useEffect(() => {
     // Load high scores for all available games
