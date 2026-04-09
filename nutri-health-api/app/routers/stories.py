@@ -82,7 +82,7 @@ async def get_story_cover(
     Raises:
         HTTPException: 404 if story or cover image not found
     """
-    logger.info(f"User '{current_user.get('sub')}' requested cover for story '{story_id}'")
+    logger.info(f"User '{current_user.get('username')}' requested cover for story '{story_id}'")
     
     # Validate story exists
     if not validate_story_exists(story_id):
@@ -97,6 +97,35 @@ async def get_story_cover(
     
     return FileResponse(cover_path, media_type="image/jpeg")
 
+@router.get("/{story_id}/text")
+async def get_story_text(story_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Gets the story text of a specific story.
+    
+    Args:
+        story_id: The unique identifier for the story
+
+    Returns:
+        str: The text for the story
+    
+    Raises:
+        HTTPException: 404 if story not found
+    """
+    logger.info(f"User '{current_user.get('sub')}' requested text for story '{story_id}'")
+
+    # Validate story exists
+    if not validate_story_exists(story_id):
+        raise HTTPException(status_code=404, detail=f"Story '{story_id}' not found")
+    
+    text_path = os.path.join(STORIES_DIR, story_id, "text.json")
+    if not os.path.exists(text_path):
+        logger.error(f"Text not found at {text_path}")
+        raise HTTPException(status_code=404, detail="Text not found")
+    
+    with open(text_path) as text_file:
+        data = json.load(text_file)
+
+    return data
 
 @router.get("/{story_id}/pages/{page_number}/image")
 async def get_story_page_image(
@@ -177,10 +206,10 @@ async def get_story_page_audio(
         )
     
     # Construct path to page audio
-    audio_path = os.path.join(STORIES_DIR, story_id, "pages", f"page-{page_number}.mp3")
-    
-    if not os.path.exists(audio_path):
-        logger.error(f"Page audio not found at {audio_path}")
-        raise HTTPException(status_code=404, detail="Page audio not found")
-    
-    return FileResponse(audio_path, media_type="audio/mpeg")
+    audio_path = os.path.join(STORIES_DIR, story_id, "pages", f"page-{page_number}.wav")
+    if os.path.exists(audio_path):
+        return FileResponse(audio_path)
+    if os.path.exists(audio_path_alt := audio_path.rstrip('.wav') + '.WAV'):
+        return FileResponse(audio_path_alt)
+    logger.error(f"Page audio not found at {audio_path} or {audio_path_alt}")
+    raise HTTPException(status_code=404, detail='Page audio not found')

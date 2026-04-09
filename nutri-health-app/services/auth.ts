@@ -9,13 +9,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = 'auth_token';
 const TOKEN_EXPIRY_KEY = 'token_expiry';
-const BACKEND_URL = __DEV__ 
-  ? 'http://localhost:8000'
-  : 'https://your-app.onrender.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 // Hardcoded credentials (for demo only)
-const DEMO_USERNAME = 'demo';
-const DEMO_PASSWORD = 'demo123';
+// const DEMO_USERNAME = 'demo';
+const DEMO_USERNAME = process.env.EXPO_PUBLIC_USERNAME || '';
+// const DEMO_PASSWORD = 'demo123';
+const DEMO_PASSWORD = process.env.EXPO_PUBLIC_PASSWORD || '';
 
 interface TokenResponse {
   access_token: string;
@@ -26,6 +26,7 @@ interface TokenResponse {
  * Request a new token from the backend
  */
 async function requestNewToken(): Promise<string> {
+  console.log(`Requesting new token at ${BACKEND_URL}/token`);
   const formData = new URLSearchParams();
   formData.append('username', DEMO_USERNAME);
   formData.append('password', DEMO_PASSWORD);
@@ -76,6 +77,7 @@ export async function getToken(): Promise<string> {
     
     // If token exists and not expired, return it
     if (cachedToken && !(await isTokenExpired())) {
+      console.log('Using cached token', cachedToken);
       return cachedToken;
     }
     
@@ -101,6 +103,7 @@ export async function clearToken(): Promise<void> {
  */
 export async function initializeAuth(): Promise<void> {
   try {
+    console.log('Getting auth token');
     await getToken();
     console.log('Authentication initialized successfully');
   } catch (error) {

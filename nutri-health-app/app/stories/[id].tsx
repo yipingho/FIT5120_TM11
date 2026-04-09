@@ -10,10 +10,11 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,8 +29,8 @@ import {
   getAuthHeaders,
   getStoryText,
   Story,
-  StoryTextData,
   ApiError,
+  StoryTextData,
 } from '../../services/stories';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -51,6 +52,8 @@ const getStoryTextStyle = (storyId: string) => {
 export default function StoryViewerScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
+  const navigation = useNavigation();
+  const parent = navigation.getParent();
   const storyId = params.id as string;
 
   const [story, setStory] = useState<Story | null>(null);
@@ -58,12 +61,36 @@ export default function StoryViewerScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioState, setAudioState] = useState<'playing'| 'idle' | 'error'>('idle');
   const [authHeaders, setAuthHeaders] = useState<{ Authorization: string } | null>(null);
 
   const soundRef = useRef<Audio.Sound | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const isAutoScrolling = useRef(false);
+
+  const cleanUp = () => {
+    parent?.setOptions({title: 'Stories', headerRight: undefined});
+  }
+
+  useEffect(() => {
+    if (!story) return;
+
+    // Set dynamic title + custom back button
+    parent?.setOptions({
+      title: story.title,
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ marginRight: 16 }}
+        >
+          <Ionicons name="arrow-back" size={24} />
+        </TouchableOpacity>
+      ),
+    });
+
+    // Cleanup: restore default title when leaving
+    return cleanUp;
+  }, [story]);
 
   useEffect(() => {
     loadStoryData();
@@ -94,7 +121,7 @@ export default function StoryViewerScreen() {
         await soundRef.current.unloadAsync();
         soundRef.current = null;
       }
-      setIsPlaying(false);
+      setAudioState('idle');
     } catch (err) {
       console.error('Failed to cleanup audio:', err);
     }
@@ -167,9 +194,20 @@ export default function StoryViewerScreen() {
         },
         { shouldPlay: true }
       );
+      if (story?.pageCount && pageNumber + 1 <= story.pageCount) {
+        // Making this request will cause it to exist in the cache.
+        // This will make the playing of the next audio file smoother.
+        await Audio.Sound.createAsync(
+          {
+            uri: getStoryPageAudioUrl(storyId, pageNumber + 1),
+            headers: authHeaders || undefined,
+          },
+          { shouldPlay: false }
+        ).catch((e) => undefined);
+      }
 
       soundRef.current = sound;
-      setIsPlaying(true);
+      setAudioState('playing');
 
       // Set up callback for when audio finishes
       sound.setOnPlaybackStatusUpdate((status) => {
@@ -179,12 +217,12 @@ export default function StoryViewerScreen() {
       });
     } catch (err) {
       console.error('Failed to play audio:', err);
-      setIsPlaying(false);
+      setAudioState('error');
     }
   };
 
   const handleAudioFinished = async (pageNumber: number) => {
-    setIsPlaying(false);
+    setAudioState('idle');
     
     // Auto-advance to next page if available
     if (story && pageNumber < story.pageCount) {
@@ -212,16 +250,17 @@ export default function StoryViewerScreen() {
   };
 
   const handleListenPress = async () => {
-    if (isPlaying) {
-      await cleanupAudio();
-    } else {
+    if (audioState === 'idle' || audioState === 'error') {
       await playAudioForPage(currentPage);
+    } else if (audioState === 'playing') {
+      await cleanupAudio();
     }
   };
 
   const handleBackPress = async () => {
     await cleanupAudio();
-    router.push('/stories/index' as any);
+    loadAuthHeaders();
+    loadStoryData();
   };
 
   if (loading) {
@@ -237,8 +276,8 @@ export default function StoryViewerScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>{error || 'Story not found'}</Text>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
-          <Text style={styles.backButtonText}>Back to Stories</Text>
+        <TouchableOpacity style={styles.button} onPress={handleBackPress}>
+          <Text style={styles.backButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
@@ -256,12 +295,12 @@ export default function StoryViewerScreen() {
           activeOpacity={0.8}
         >
           <Ionicons 
-            name={isPlaying ? "stop-circle" : "volume-high"} 
+            name={audioState === 'playing' ? "stop-circle" : audioState === 'idle' ? "volume-high" : "warning-outline"} 
             size={24} 
             color={Colors.on_primary} 
           />
           <Text style={styles.listenButtonText}>
-            {isPlaying ? 'Stop' : 'Listen'}
+            {audioState === 'playing' ? 'Stop' : audioState === 'idle' ? 'Listen' : "Unavailable"}
           </Text>
         </TouchableOpacity>
       </View>
@@ -280,7 +319,7 @@ export default function StoryViewerScreen() {
           const imageUrl = getStoryPageImageUrl(storyId, pageNumber);
 
           return (
-            <View key={pageNumber} style={styles.page}>
+            <View key={pageNumber} style={index + 1 !== story.pageCount ? styles.page : [styles.page, {height: 'auto'}]}>
               {/* Text Section - Top Half */}
               <View style={styles.textSection}>
                 <Text style={[styles.storyText, textStyle]}>
@@ -299,9 +338,20 @@ export default function StoryViewerScreen() {
                   resizeMode="contain"
                 />
               </View>
+
+              {index + 1 === story.pageCount &&
+                <Ionicons name='arrow-down-circle-outline' size={52} style={{alignSelf: 'center', paddingTop: Spacing.md}}/>
+              }
             </View>
           );
         })}
+        <View style={styles.centerContainer}>
+          <Text style={{...styles.outcomeTitle, paddingBottom: Spacing.md}}>What can we learn?</Text>
+          <Text style={{...styles.storyText, paddingBottom: Spacing.lg}}>{storyText.outcome}</Text>
+          <TouchableOpacity style={{...styles.button, marginBottom: Spacing.lg}} onPress={() => navigation.goBack()}>
+            <Text style={styles.backButtonText}>Back to Stories</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -328,7 +378,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     zIndex: 1000,
     justifyContent: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     paddingHorizontal: Spacing.xl,
   },
   listenButton: {
@@ -366,7 +416,7 @@ const styles = StyleSheet.create({
     width: SCREEN_WIDTH,
   },
   textSection: {
-    height: PAGE_HEIGHT * 0.5,
+    // height: PAGE_HEIGHT * 0.5,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.xl,
     justifyContent: 'center',
@@ -376,14 +426,17 @@ const styles = StyleSheet.create({
     ...Typography.bodyLarge,
   },
   imageSection: {
-    height: PAGE_HEIGHT * 0.5,
+    width: SCREEN_WIDTH,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: Colors.surface,
   },
   pageImage: {
-    width: SCREEN_WIDTH * 0.9,
-    height: PAGE_HEIGHT * 0.45,
+    width: '100%',
+    aspectRatio: 1
+  },
+  outcomeTitle: {
+    ...Typography.headlineLarge
   },
   loadingText: {
     ...Typography.bodyLarge,
@@ -396,7 +449,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.lg,
   },
-  backButton: {
+  button: {
     backgroundColor: Colors.primary,
     paddingHorizontal: Spacing.xl,
     paddingVertical: Spacing.md,

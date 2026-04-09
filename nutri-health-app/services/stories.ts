@@ -7,10 +7,7 @@
 
 import { getToken, clearToken } from './auth';
 
-// Backend URL configuration
-const BACKEND_URL = __DEV__ 
-  ? 'http://localhost:8000'
-  : 'https://your-app.onrender.com';
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const API_TIMEOUT = 30000; // 30 seconds
 
@@ -29,7 +26,6 @@ export interface Story {
  */
 export interface StoryPage {
   storyText: string;
-  imagePrompt: string;
 }
 
 /**
@@ -37,6 +33,7 @@ export interface StoryPage {
  */
 export interface StoryTextData {
   pages: StoryPage[];
+  outcome: string;
 }
 
 /**
@@ -258,6 +255,6 @@ export async function getStoryText(storyId: string): Promise<StoryTextData> {
       throw error;
     }
     
-    throw new ApiError('Failed to load story text', 500, error);
+    throw new ApiError('Unable to load story', 500, error);
   }
 }

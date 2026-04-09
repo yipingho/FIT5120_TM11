@@ -20,8 +20,8 @@ ALGORITHM = os.getenv("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_HOURS = int(os.getenv("ACCESS_TOKEN_EXPIRE_HOURS", "24"))
 
 # Hardcoded credentials for demo purposes
-DEMO_USERNAME = "demo"
-DEMO_PASSWORD = "demo123"
+DEMO_USERNAME = os.getenv("DEMO_USERNAME")
+DEMO_PASSWORD = os.getenv("DEMO_PASSWORD")
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -153,6 +153,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     Raises:
         HTTPException: 401 Unauthorized if token is invalid or expired
     """
+    print('Getting current user', token)
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -161,8 +162,9 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> dict:
     
     # Decode and validate token
     token_data = decode_access_token(token)
+    print('token data', token_data)
     if token_data is None:
         raise credentials_exception
     
-    logger.debug(f"Token validated successfully for user '{token_data['username']}'")
+    logger.info(f"Token validated successfully for user '{token_data['username']}'")
     return token_data

@@ -1,19 +1,17 @@
-/**
- * Stories List Screen
- * Displays a carousel of available stories with cover images
- */
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  Image,
   ActivityIndicator,
   Dimensions,
+  Animated,
+  Easing,
 } from 'react-native';
+import { AutoSizeText, ResizeTextMode } from 'react-native-auto-size-text';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { Colors } from '../../constants/Colors';
 import { Typography } from '../../constants/Typography';
@@ -22,27 +20,109 @@ import { Spacing } from '../../constants/Spacing';
 import { getStories, getStoryCoverUrl, getAuthHeaders, Story, ApiError } from '../../services/stories';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_HEIGHT = SCREEN_HEIGHT * 0.75; // 75% of screen height
-const CARD_WIDTH = CARD_HEIGHT * 0.7; // Maintain good proportions
+const CARD_HEIGHT = SCREEN_HEIGHT * 0.6;
+const CARD_WIDTH = SCREEN_WIDTH * 0.9;
+const CARD_SPACING = (SCREEN_WIDTH - CARD_WIDTH) / 2;
+
+const AUTO_SCROLL_INTERVAL = 4000;
 
 export default function StoriesListScreen() {
   const router = useRouter();
+
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authHeaders, setAuthHeaders] = useState<{ Authorization: string } | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  const flatListRef = useRef<FlatList>(null);
+  const intervalRef = useRef<number | null>(null);
+
+  // 🔥 Progress animation
+  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     loadStories();
     loadAuthHeaders();
   }, []);
 
+  /** ---------------- Progress Animation ---------------- */
+
+  const animateProgress = () => {
+    progress.setValue(0);
+
+    Animated.timing(progress, {
+      toValue: 1,
+      duration: AUTO_SCROLL_INTERVAL,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  useEffect(() => {
+    if (stories.length > 0) {
+      animateProgress();
+    }
+  }, [currentIndex]);
+
+  /** ---------------- Auto Scroll ---------------- */
+
+  const startAutoScroll = () => {
+    stopAutoScroll();
+
+    if (stories.length <= 1) return;
+
+    intervalRef.current = setInterval(() => {
+      setCurrentIndex((prev) => {
+        const nextIndex = (prev + 1) % stories.length;
+
+        flatListRef.current?.scrollToIndex({
+          index: nextIndex,
+          animated: true,
+        });
+
+        return nextIndex;
+      });
+    }, AUTO_SCROLL_INTERVAL);
+  };
+
+  const stopAutoScroll = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    progress.stopAnimation();
+    progress.setValue(0);
+  };
+
+  useEffect(() => {
+    if (stories.length > 0) {
+      startAutoScroll();
+      animateProgress();
+    }
+    return stopAutoScroll;
+  }, [stories]);
+
+  /** ---------------- Viewability ---------------- */
+
+  const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setCurrentIndex(viewableItems[0].index);
+    }
+  }).current;
+
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50,
+  };
+
+  /** ---------------- Data ---------------- */
+
   const loadAuthHeaders = async () => {
     try {
       const headers = await getAuthHeaders();
       setAuthHeaders(headers);
     } catch (err) {
-      console.error('Failed to load auth headers:', err);
+      console.error(err);
     }
   };
 
@@ -53,20 +133,22 @@ export default function StoriesListScreen() {
       const fetchedStories = await getStories();
       setStories(fetchedStories);
     } catch (err) {
-      console.error('Failed to load stories:', err);
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError('Failed to load stories. Please try again.');
-      }
+      if (err instanceof ApiError) setError(err.message);
+      else setError('Failed to load stories.');
     } finally {
       setLoading(false);
     }
   };
 
   const handleStoryPress = (story: Story) => {
-    router.push(`/stories/${story.id}` as any);
+    stopAutoScroll();
+    router.push({
+      pathname: `/stories/[id]`,
+      params: { id: story.id },
+    });
   };
+
+  /** ---------------- Render ---------------- */
 
   const renderStoryCard = ({ item }: { item: Story }) => {
     const coverUrl = getStoryCoverUrl(item.id);
@@ -85,18 +167,19 @@ export default function StoriesListScreen() {
             }}
             style={styles.coverImage}
           />
-          <View style={styles.titleContainer}>
-            <Text style={styles.title} numberOfLines={3} ellipsizeMode="tail">
-              {item.title}
-            </Text>
-            <Text style={styles.pageCount}>
-              {item.pageCount} {item.pageCount === 1 ? 'page' : 'pages'}
-            </Text>
-          </View>
+          <AutoSizeText
+            fontSize={24}
+            numberOfLines={1}
+            mode={ResizeTextMode.max_lines}
+            style={styles.title}>
+            {item.title}
+          </AutoSizeText>
         </View>
       </TouchableOpacity>
     );
   };
+
+  /** ---------------- States ---------------- */
 
   if (loading) {
     return (
@@ -126,6 +209,8 @@ export default function StoriesListScreen() {
     );
   }
 
+  /** ---------------- UI ---------------- */
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -133,19 +218,52 @@ export default function StoriesListScreen() {
         <Text style={styles.headerSubtitle}>Tap a story to begin reading</Text>
       </View>
 
-      <FlatList
-        data={stories}
-        renderItem={renderStoryCard}
-        keyExtractor={(item) => item.id}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        snapToInterval={CARD_WIDTH + Spacing.lg}
-        decelerationRate="fast"
-        contentContainerStyle={styles.listContent}
-      />
+      <View>
+        <FlatList
+          ref={flatListRef}
+          data={stories}
+          renderItem={renderStoryCard}
+          keyExtractor={(item) => item.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={CARD_WIDTH + CARD_SPACING - Spacing.xs}
+          decelerationRate="fast"
+          contentContainerStyle={styles.listContent}
+          onTouchStart={stopAutoScroll}
+          onMomentumScrollEnd={() => {
+            startAutoScroll();
+            animateProgress();
+          }}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          getItemLayout={(_, index) => ({
+            length: (CARD_WIDTH + CARD_SPACING - Spacing.xs),
+            offset: (CARD_WIDTH + CARD_SPACING - Spacing.xs) * index,
+            index,
+          })}
+        />
+
+        <View style={styles.progressContainer}>
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[
+                styles.progressFill,
+                {
+                  width: progress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                },
+              ]}
+            />
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
+
+/** ---------------- Styles ---------------- */
 
 const styles = StyleSheet.create({
   container: {
@@ -167,58 +285,61 @@ const styles = StyleSheet.create({
   headerTitle: {
     ...Typography.displayMedium,
     color: Colors.on_surface,
-    marginBottom: Spacing.xs,
   },
   headerSubtitle: {
     ...Typography.bodyLarge,
     color: Colors.on_surface_variant,
   },
   listContent: {
-    paddingHorizontal: (SCREEN_WIDTH - CARD_WIDTH) / 2,
+    paddingHorizontal: CARD_SPACING,
     paddingVertical: Spacing.md,
   },
   card: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
-    marginHorizontal: Spacing.md,
+    marginHorizontal: Spacing.xs,
   },
   cardInner: {
     flex: 1,
     backgroundColor: Colors.surface_container_lowest,
-    borderRadius: Radius.xl,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
-    // Elevation for shadow effect
-    shadowColor: Colors.on_surface,
-    shadowOffset: {
-      width: 0,
-      height: 20,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 40,
-    elevation: 8,
   },
   coverImage: {
     width: '100%',
     height: '88%',
-    backgroundColor: Colors.surface_container,
-    resizeMode: 'cover',
-  },
-  titleContainer: {
-    height: '12%',
-    padding: Spacing.lg,
-    justifyContent: 'center',
-    backgroundColor: Colors.surface_container_lowest,
   },
   title: {
     ...Typography.headlineMedium,
+    padding: Spacing.sm,
     color: Colors.on_surface,
-    marginBottom: Spacing.xs,
-    flexWrap: 'wrap',
   },
-  pageCount: {
-    ...Typography.bodyMedium,
-    color: Colors.on_surface_variant,
+
+  /** Progress bars */
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.lg,
   },
+  progressContainer: {
+    marginTop: 6, // tight under carousel
+    paddingHorizontal: Spacing.xl,
+    alignItems: 'center'
+  },
+  progressTrack: {
+    width: '50%',
+    height: 4,
+    backgroundColor: Colors.surface_container,
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+  },
+
   loadingText: {
     ...Typography.bodyLarge,
     color: Colors.on_surface_variant,
