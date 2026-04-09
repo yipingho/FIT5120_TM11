@@ -41,9 +41,29 @@ export default function Scanner() {
 
       // Upload to backend and get results
       const result = await scanFood(uri);
-      
+
       setIsLoading(false);
-      
+
+      // Check if food was recognised
+      if (result.confidence === 0 || result.food_name === 'Food Item') {
+        Alert.alert(
+          'Unable to recognise this food',
+          'Please try again with a clearer photo!',
+          [{ text: 'Try Again', style: 'default' }]
+        );
+        return;
+      }
+
+      // Check if evaluation result is available
+      if (!result.assessment || !result.nutritional_info || result.assessment_score === undefined) {
+        Alert.alert(
+          'Unable to retrieve result at the moment',
+          '',
+          [{ text: 'OK', style: 'default' }]
+        );
+        return;
+      }
+
       // Navigate to results page with data
       router.push({
         pathname: '/scanner/results' as any,
@@ -91,12 +111,24 @@ export default function Scanner() {
     }
 
     // Launch camera
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
+    let result;
+    try {
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+        maxWidth: 512,
+        maxHeight: 512,
+      });
+    } catch {
+      Alert.alert(
+        'Unable to access camera',
+        '',
+        [{ text: 'OK', style: 'default' }]
+      );
+      return;
+    }
 
     if (!result.canceled && result.assets[0]) {
       await handleImageSelected(result.assets[0].uri);
@@ -122,6 +154,8 @@ export default function Scanner() {
       allowsEditing: true,
       aspect: [4, 3],
       quality: 0.8,
+      maxWidth: 512,
+      maxHeight: 512,
     });
 
     if (!result.canceled && result.assets[0]) {
