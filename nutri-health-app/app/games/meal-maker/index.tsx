@@ -102,25 +102,29 @@ export default function MealMakerScreen() {
     } catch (_) {}
   }, [stopMenuMusic, stopRoundMusic]);
 
-  // Stop all music when navigating away from this screen
+  // Play menu music on focus (idle/game_over), stop all on blur
   useFocusEffect(
     useCallback(() => {
+      // Start menu music when screen gains focus (unless a round is already playing)
+      if (gamePhase !== 'playing') {
+        playMenuMusic();
+      }
+
       return () => {
+        // Stop all music when navigating away
         stopMenuMusic();
         stopRoundMusic();
       };
-    }, [stopMenuMusic, stopRoundMusic])
+    }, [stopMenuMusic, stopRoundMusic, playMenuMusic, gamePhase])
   );
 
   // Switch music based on game phase
   useEffect(() => {
     if (gamePhase === 'playing') {
       playRoundMusic();
-    } else if (gamePhase === 'idle') {
-      // Menu music is handled by the games hub (index.tsx)
+    } else if (gamePhase === 'idle' || gamePhase === 'game_over') {
       stopRoundMusic();
-    } else if (gamePhase === 'game_over') {
-      stopRoundMusic();
+      playMenuMusic();
     }
   }, [gamePhase]);
 
