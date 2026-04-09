@@ -149,7 +149,7 @@ export default function FallingIngredient({
           }
         );
       }
-    });
+    }).runOnJS(true);
 
   const animatedStyle = useAnimatedStyle(() => {
     if (isCaught.value) {

@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingBottom: Spacing['2xl'],
     paddingTop: Spacing.sm,
-    backgroundColor: Colors.surface_container_low,
+    backgroundColor: Colors.on_secondary_container,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
   },
