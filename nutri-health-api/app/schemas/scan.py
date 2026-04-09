@@ -7,14 +7,19 @@ from typing import List, Optional
 from pydantic import BaseModel, Field
 
 
+class NutrientDetail(BaseModel):
+    """A single nutrient broken into amount and child-friendly description."""
+    amount: str = Field(..., description="Numeric value with unit, e.g. '12.5g'")
+    description: str = Field(..., description="One sentence child-friendly explanation")
+
+    class Config:
+        extra = "allow"
+
+
 class NutritionalInfo(BaseModel):
-    """Nutritional information for a food item.
-    Each field is a two-line string: numeric estimate on the first line,
-    child-friendly explanation on the second line.
-    """
-    carbohydrates: Optional[str] = Field(None, description="Carbohydrates — value and description")
-    protein: Optional[str] = Field(None, description="Protein — value and description")
-    fats: Optional[str] = Field(None, description="Fats — value and description")
+    carbohydrates: Optional[NutrientDetail] = None
+    protein: Optional[NutrientDetail] = None
+    fats: Optional[NutrientDetail] = None
 
     class Config:
         extra = "allow"
@@ -23,7 +28,7 @@ class NutritionalInfo(BaseModel):
 class Alternative(BaseModel):
     """Healthier alternative suggestion"""
     name: str = Field(..., description="Name of the alternative food")
-    description: Optional[str] = Field(None, description="Child-friendly description of benefits")
+    description: Optional[str] = Field(None, description="Child-friendly description with emoji")
 
     class Config:
         extra = "allow"
@@ -37,7 +42,7 @@ class ScanResponse(BaseModel):
     nutritional_info: NutritionalInfo = Field(..., description="Nutritional breakdown")
     assessment_score: int = Field(..., description="Health score: 1=unhealthy, 2=moderate, 3=healthy")
     assessment: str = Field(..., description="Child-friendly health assessment")
-    alternatives: List[Alternative] = Field(default_factory=list, description="Healthier alternatives")
+    alternatives: List[Alternative] = Field(default_factory=list, description="Healthier alternatives (max 2)")
 
     class Config:
         json_schema_extra = {
@@ -45,19 +50,19 @@ class ScanResponse(BaseModel):
                 "confidence": 0.95,
                 "food_name": "Chocolate Chip Cookie",
                 "nutritional_info": {
-                    "carbohydrates": "20.0g\nGives you a quick burst of energy to run and play",
-                    "protein": "2.0g\nHelps your muscles stay strong",
-                    "fats": "7.0g\nKeeps your brain sharp and body warm"
+                    "carbohydrates": {"amount": "20.0g", "description": "Gives you a quick burst of energy to run and play"},
+                    "protein": {"amount": "2.0g", "description": "Helps your muscles stay strong"},
+                    "fats": {"amount": "7.0g", "description": "Keeps your brain sharp and body warm"}
                 },
                 "assessment_score": 1,
                 "assessment": "This cookie tastes amazing as an occasional treat! 🍪 Try pairing it with a glass of milk for some extra goodness. You're doing great exploring different foods! 😊",
                 "alternatives": [
                     {
-                        "name": "Oatmeal Raisin Cookie",
+                        "name": "🌾 Oatmeal Raisin Cookie",
                         "description": "Made with oats that give you longer-lasting energy and keep you full."
                     },
                     {
-                        "name": "Apple Slices with Peanut Butter",
+                        "name": "🍎 Apple Slices with Peanut Butter",
                         "description": "A naturally sweet snack that also helps build strong muscles."
                     }
                 ]
