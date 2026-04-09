@@ -1,4 +1,4 @@
-# Game 1 Implementation Plan: "Meal Catcher"
+# Game 1 Implementation Plan: "Meal Maker"
 
 ## Overview
 
@@ -26,11 +26,11 @@ No backend — scores stored locally using `@react-native-async-storage/async-st
 nutri-health-app/app/games/
   _layout.tsx                          ← Stack layout (headerShown: false)
   index.tsx                            ← Games hub (grid of game tiles)
-  meal-catcher/
+  meal-maker/
     index.tsx                          ← Game screen assembly
 
 nutri-health-app/components/games/
-  meal-catcher/
+  meal-maker/
     FallingIngredient.tsx
     Plate.tsx
     ScoreDisplay.tsx
@@ -58,13 +58,13 @@ nutri-health-app/hooks/games/
 **Files to create/modify:**
 - `nutri-health-app/app/games/_layout.tsx` — Stack layout, headerShown: false
 - `nutri-health-app/app/games/index.tsx` — Games hub screen (grid of game tiles)
-- `nutri-health-app/app/games/meal-catcher/index.tsx` — Game screen scaffold
+- `nutri-health-app/app/games/meal-maker/index.tsx` — Game screen scaffold
 - `nutri-health-app/app/_layout.tsx` — Add `games` Drawer.Screen with label "Games"
 
 **Games hub UI:**
 - Header: "Games" in displayMedium typography
 - 2-column FlatList grid of game tiles
-- "Meal Catcher" tile: shows name, emoji 🍽️, and high score from AsyncStorage
+- "Meal Maker" tile: shows name, emoji 🍽️, and high score from AsyncStorage
 - "Coming Soon" placeholder tile (greyed out)
 - Styled with existing design system (Colors, Typography, Radius, Spacing)
 
@@ -164,7 +164,7 @@ A custom React hook managing all game state and logic.
 
 ### Task 5: Falling Ingredient Component
 
-**File:** `nutri-health-app/components/games/meal-catcher/FallingIngredient.tsx`
+**File:** `nutri-health-app/components/games/meal-maker/FallingIngredient.tsx`
 
 **Props:**
 ```ts
@@ -201,7 +201,7 @@ x = (laneIndex + 0.5) * (screenWidth / NUM_LANES) - 35  // centered in lane, off
 
 ### Task 6: Plate Component
 
-**File:** `nutri-health-app/components/games/meal-catcher/Plate.tsx`
+**File:** `nutri-health-app/components/games/meal-maker/Plate.tsx`
 
 **Props:**
 ```ts
@@ -222,7 +222,7 @@ x = (laneIndex + 0.5) * (screenWidth / NUM_LANES) - 35  // centered in lane, off
 
 ### Task 7: Score Display (HUD)
 
-**File:** `nutri-health-app/components/games/meal-catcher/ScoreDisplay.tsx`
+**File:** `nutri-health-app/components/games/meal-maker/ScoreDisplay.tsx`
 
 **Props:** `score: number`, `timeRemaining: number`
 
@@ -237,7 +237,7 @@ x = (laneIndex + 0.5) * (screenWidth / NUM_LANES) - 35  // centered in lane, off
 
 ### Task 8: Meal Score Popup Component
 
-**File:** `nutri-health-app/components/games/meal-catcher/MealScorePopup.tsx`
+**File:** `nutri-health-app/components/games/meal-maker/MealScorePopup.tsx`
 
 **Props:** `score: number`, `visible: boolean`
 
@@ -251,7 +251,7 @@ x = (laneIndex + 0.5) * (screenWidth / NUM_LANES) - 35  // centered in lane, off
 
 ### Task 9: Game Over Overlay Component
 
-**File:** `nutri-health-app/components/games/meal-catcher/GameOverOverlay.tsx`
+**File:** `nutri-health-app/components/games/meal-maker/GameOverOverlay.tsx`
 
 **Props:**
 ```ts
@@ -278,7 +278,7 @@ x = (laneIndex + 0.5) * (screenWidth / NUM_LANES) - 35  // centered in lane, off
 
 ### Task 10: Game Screen Assembly
 
-**File:** `nutri-health-app/app/games/meal-catcher/index.tsx`
+**File:** `nutri-health-app/app/games/meal-maker/index.tsx`
 
 **Assembles all components:**
 - `useGameEngine` hook for all state

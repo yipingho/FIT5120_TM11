@@ -83,7 +83,7 @@ export default function FallingIngredient({
     );
 
     // Random spin direction and speed
-    const spinDuration = 800 + Math.random() * 600;
+    const spinDuration = 1600 + Math.random() * 600;
     const spinDirection = Math.random() > 0.5 ? 360 : -360;
     rotation.value = withRepeat(
       withTiming(spinDirection, { duration: spinDuration, easing: Easing.linear }),

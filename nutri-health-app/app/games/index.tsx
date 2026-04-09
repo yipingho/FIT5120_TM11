@@ -36,10 +36,10 @@ interface GameTile {
 const GAMES: GameTile[] = [
   {
     id: GAME_ID,
-    title: 'Meal Catcher',
+    title: 'Meal Maker',
     emoji: '🍽️',
     description: 'Catch falling ingredients to build healthy meals!',
-    route: '/games/meal-catcher',
+    route: '/games/meal-maker',
     available: true,
   },
   {

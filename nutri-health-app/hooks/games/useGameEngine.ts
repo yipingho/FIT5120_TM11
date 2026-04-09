@@ -1,5 +1,5 @@
 /**
- * useGameEngine — Custom hook for "Meal Catcher" game state & logic
+ * useGameEngine — Custom hook for "Meal Maker" game state & logic
  *
  * Manages: game phase, timer, ingredient spawning, plate state,
  * meal completion, scoring, and difficulty progression.
@@ -21,7 +21,7 @@ import {
 } from '../../constants/GameConfig';
 import { saveGameScore, getHighScore } from '../../services/gameStorage';
 
-export const GAME_ID = 'meal-catcher';
+export const GAME_ID = 'meal-maker';
 
 export type GamePhase = 'idle' | 'playing' | 'game_over';
 
@@ -296,7 +296,7 @@ export function useGameEngine(): GameState & GameActions {
         showMealScore: false,
         lastMealScore: null,
       }));
-    }, 1500);
+    }, 100);
   }, []);
 
   // ─── Despawn Ingredient ──────────────────────────────────────────────────────

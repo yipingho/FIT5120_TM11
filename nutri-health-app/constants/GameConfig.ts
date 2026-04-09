@@ -1,6 +1,6 @@
 /**
  * NutriHealth Game Configuration
- * "Meal Catcher" - Game 1
+ * "Meal Maker" - Game 1
  *
  * All game balance parameters are configurable here.
  */
@@ -9,15 +9,15 @@
 
 export const ROUND_DURATION_SECONDS = 60;
 export const NUM_LANES = 6;
-export const MAX_INGREDIENTS_PER_LANE = 2;
+export const MAX_INGREDIENTS_PER_LANE = 5;
 export const MAX_ACTIVE_INGREDIENTS = 10;
 export const PLATE_CAPACITY = 3;
 
 /** Spawn interval in ms — decreases over time (speeds up spawning) */
-export const SPAWN_INTERVAL_INITIAL_MS = 2000;
-export const SPAWN_INTERVAL_MIN_MS = 800;
+export const SPAWN_INTERVAL_INITIAL_MS = 1000;
+export const SPAWN_INTERVAL_MIN_MS = 100;
 /** Every X seconds, spawn interval decreases by SPAWN_INTERVAL_STEP_MS */
-export const SPAWN_DIFFICULTY_STEP_SECONDS = 10;
+export const SPAWN_DIFFICULTY_STEP_SECONDS = 5;
 export const SPAWN_INTERVAL_STEP_MS = 200;
 
 /** Fall duration in ms — decreases over time (ingredients fall faster) */
@@ -25,7 +25,7 @@ export const FALL_DURATION_INITIAL_MIN_MS = 4000;
 export const FALL_DURATION_INITIAL_MAX_MS = 6000;
 export const FALL_DURATION_MIN_MS = 1800;
 /** Every X seconds, fall duration decreases by FALL_DURATION_STEP_MS */
-export const FALL_DIFFICULTY_STEP_SECONDS = 10;
+export const FALL_DIFFICULTY_STEP_SECONDS = 5;
 export const FALL_DURATION_STEP_MS = 300;
 
 // ─── Ingredient Categories ───────────────────────────────────────────────────

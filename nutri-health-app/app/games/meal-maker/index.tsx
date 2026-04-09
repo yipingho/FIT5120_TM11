@@ -1,5 +1,5 @@
 /**
- * Meal Catcher — Game Screen
+ * Meal Maker — Game Screen
  * Assembles all game components into the final playable screen.
  */
 
@@ -14,16 +14,17 @@ import { useRouter } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { useGameEngine } from '../../../hooks/games/useGameEngine';
-import ScoreDisplay from '../../../components/games/meal-catcher/ScoreDisplay';
-import FallingIngredient from '../../../components/games/meal-catcher/FallingIngredient';
-import Plate from '../../../components/games/meal-catcher/Plate';
-import MealScorePopup from '../../../components/games/meal-catcher/MealScorePopup';
-import GameOverOverlay from '../../../components/games/meal-catcher/GameOverOverlay';
+import ScoreDisplay from '../../../components/games/meal-maker/ScoreDisplay';
+import FallingIngredient from '../../../components/games/meal-maker/FallingIngredient';
+import Plate from '../../../components/games/meal-maker/Plate';
+import MealScorePopup from '../../../components/games/meal-maker/MealScorePopup';
+import GameOverOverlay from '../../../components/games/meal-maker/GameOverOverlay';
 
 import { Colors } from '../../../constants/Colors';
 import { Typography } from '../../../constants/Typography';
 import { Spacing } from '../../../constants/Spacing';
 import { Radius } from '../../../constants/Radius';
+import { Audio } from 'expo-av';
 
 
 interface PlateZone {
@@ -33,7 +34,7 @@ interface PlateZone {
   height: number;
 }
 
-export default function MealCatcherScreen() {
+export default function MealMakerScreen() {
   const router = useRouter();
   const {
     gamePhase,
@@ -50,6 +51,8 @@ export default function MealCatcherScreen() {
     catchIngredient,
     despawnIngredient,
   } = useGameEngine();
+
+  // const sound = Audio.Sound.createAsync()
 
   const [plateZone, setPlateZone] = useState<PlateZone | null>(null);
   // We need absolute coordinates of the plate on screen
@@ -105,7 +108,7 @@ export default function MealCatcherScreen() {
           {gamePhase === 'idle' && (
             <View style={styles.idleContainer}>
               <Text style={styles.idleEmoji}>🍽️</Text>
-              <Text style={styles.idleTitle}>Meal Catcher</Text>
+              <Text style={styles.idleTitle}>Meal Maker</Text>
               <Text style={styles.idleSubtitle}>
                 Drag falling ingredients onto your plate to build healthy meals!
               </Text>
