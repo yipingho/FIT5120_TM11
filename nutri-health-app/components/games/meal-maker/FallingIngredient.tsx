@@ -108,6 +108,29 @@ export default function FallingIngredient({
     return Math.sqrt(dx * dx + dy * dy) <= PLATE_CATCH_RADIUS;
   };
 
+  const handleRelease = (fingerX: number, fingerY: number) => {
+    if (isCaughtRef.current || isDespawningRef.current) return;
+
+    if (isInsidePlateZone(fingerX, fingerY)) {
+      // Caught!
+      isCaught.value = true;
+      isCaughtRef.current = true;
+      dragX.value = 0;
+      dragY.value = 0;
+      runOnJS(onCatch)(id);
+    } else {
+      // Missed — shrink and despawn
+      isDespawningRef.current = true;
+      dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
+      dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
+      scale.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) }, (finished) => {
+        if (finished) {
+          runOnJS(onDespawn)(id);
+        }
+      });
+    }
+  };
+
   const panGesture = Gesture.Pan()
     .onBegin(() => {
       fallYAtDragStart.value = fallY.value;
@@ -119,30 +142,16 @@ export default function FallingIngredient({
       dragY.value = event.translationY;
     })
     .onEnd((event) => {
-      // Absolute position of the finger at release
-      // absoluteX/absoluteY are the finger position on screen
-      const fingerX = event.absoluteX;
-      const fingerY = event.absoluteY;
-
-      if (isInsidePlateZone(fingerX, fingerY)) {
-        // Caught!
-        isCaught.value = true;
-        isCaughtRef.current = true;
-        dragX.value = 0;
-        dragY.value = 0;
-        runOnJS(onCatch)(id);
-      } else {
-        // Missed — shrink and despawn
-        isDespawningRef.current = true;
-        dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
-        dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
-        scale.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) }, (finished) => {
-          if (finished) {
-            runOnJS(onDespawn)(id);
-          }
-        });
+      handleRelease(event.absoluteX, event.absoluteY);
+    })
+    .onTouchesUp((event) => {
+      // Fires even on a simple tap (when onEnd may not fire)
+      const touch = event.changedTouches[0];
+      if (touch) {
+        handleRelease(touch.absoluteX, touch.absoluteY);
       }
-    }).runOnJS(true);
+    })
+    .runOnJS(true);
 
   const animatedStyle = useAnimatedStyle(() => {
     if (isCaught.value) {

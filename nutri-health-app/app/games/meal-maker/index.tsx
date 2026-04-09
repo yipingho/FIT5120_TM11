@@ -102,29 +102,25 @@ export default function MealMakerScreen() {
     } catch (_) {}
   }, [stopMenuMusic, stopRoundMusic]);
 
-  // Play menu music when screen is focused (idle state)
+  // Stop all music when navigating away from this screen
   useFocusEffect(
     useCallback(() => {
-      // Start menu music when screen gains focus
-      playMenuMusic();
-
       return () => {
-        // Stop all music when screen loses focus (navigating away)
         stopMenuMusic();
         stopRoundMusic();
       };
-    }, [playMenuMusic, stopMenuMusic, stopRoundMusic])
+    }, [stopMenuMusic, stopRoundMusic])
   );
 
   // Switch music based on game phase
   useEffect(() => {
     if (gamePhase === 'playing') {
       playRoundMusic();
-    } else if (gamePhase === 'idle' || gamePhase === 'game_over') {
+    } else if (gamePhase === 'idle') {
+      // Menu music is handled by the games hub (index.tsx)
       stopRoundMusic();
-      if (gamePhase === 'idle') {
-        playMenuMusic();
-      }
+    } else if (gamePhase === 'game_over') {
+      stopRoundMusic();
     }
   }, [gamePhase]);
 
@@ -157,9 +153,9 @@ export default function MealMakerScreen() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <View style={styles.container}>
-        {/* HUD — Score & Timer */}
+        {/* HUD — Score & Timer (with back button to exit round) */}
         {gamePhase === 'playing' && (
-          <ScoreDisplay score={totalScore} timeRemaining={timeRemaining} />
+          <ScoreDisplay score={totalScore} timeRemaining={timeRemaining} onBack={handleBack} />
         )}
 
         {/* Game Field — ingredients render here, above the plate area */}
