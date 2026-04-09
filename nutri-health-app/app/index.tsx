@@ -27,13 +27,13 @@ export default function Index() {
             Welcome! 🌟
           </Display>
           <Body size="large" color={Colors.on_surface_variant}>
-            Let's track your healthy eating today!
+            {"Let's track your healthy eating today!"}
           </Body>
         </View>
 
         {/* Daily Goals Card */}
         <Card elevated style={styles.goalCard}>
-          <Headline size="small">Today's Goals</Headline>
+          <Headline size="small">{"Today's Goals"}</Headline>
           <View style={styles.goalItem}>
             <Body size="large">🍎 Fruits & Veggies</Body>
             <Body size="small" color={Colors.on_surface_variant}>

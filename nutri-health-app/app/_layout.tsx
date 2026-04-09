@@ -86,6 +86,13 @@ export default function RootLayout() {
             title: 'Stories',
           }}
         />
+        <Drawer.Screen
+          name="games"
+          options={{
+            drawerLabel: 'Games',
+            title: 'Games',
+          }}
+        />
       </Drawer>
     </GestureHandlerRootView>
   );
