@@ -1,6 +1,7 @@
 /**
  * FallingIngredient — Animated ingredient that falls from top to bottom.
  * Supports drag-to-catch gesture. Has random spin animation.
+ * On missed drop: shrinks and despawns instead of resuming fall.
  */
 
 import React, { useEffect, useRef } from 'react';
@@ -21,6 +22,10 @@ import { Radius } from '../../../constants/Radius';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const INGREDIENT_SIZE = 70;
 const LANE_WIDTH = SCREEN_WIDTH / NUM_LANES;
+
+// Plate zone detection: use a generous radius around the plate center
+// The plate is 200px wide, so radius ~120px gives good coverage
+const PLATE_CATCH_RADIUS = 120;
 
 interface PlateZone {
   x: number;
@@ -57,15 +62,16 @@ export default function FallingIngredient({
   // Drag offset
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
-  // Whether currently being dragged
-  const isDragging = useSharedValue(false);
+  // Scale — used for shrink-on-miss despawn
+  const scale = useSharedValue(1);
   // Whether caught (hide after catch)
   const isCaught = useSharedValue(false);
 
-  // Track fall progress for snap-back
+  // Track fall Y at drag start for plate zone calculation
   const fallYAtDragStart = useSharedValue(0);
 
   const isCaughtRef = useRef(false);
+  const isDespawningRef = useRef(false);
 
   useEffect(() => {
     // Start fall animation
@@ -76,7 +82,7 @@ export default function FallingIngredient({
         easing: Easing.linear,
       },
       (finished) => {
-        if (finished && !isCaughtRef.current) {
+        if (finished && !isCaughtRef.current && !isDespawningRef.current) {
           runOnJS(onDespawn)(id);
         }
       }
@@ -92,21 +98,20 @@ export default function FallingIngredient({
     );
   }, []);
 
-  const isInsidePlateZone = (absX: number, absY: number): boolean => {
+  const isInsidePlateZone = (fingerX: number, fingerY: number): boolean => {
     if (!plateZone) return false;
+    // Use the center of the plate zone
     const cx = plateZone.x + plateZone.width / 2;
     const cy = plateZone.y + plateZone.height / 2;
-    const radius = Math.min(plateZone.width, plateZone.height) / 2 + 20; // 20px tolerance
-    const dx = absX - cx;
-    const dy = absY - cy;
-    return Math.sqrt(dx * dx + dy * dy) <= radius;
+    const dx = fingerX - cx;
+    const dy = fingerY - cy;
+    return Math.sqrt(dx * dx + dy * dy) <= PLATE_CATCH_RADIUS;
   };
 
   const panGesture = Gesture.Pan()
     .onBegin(() => {
-      isDragging.value = true;
       fallYAtDragStart.value = fallY.value;
-      // Pause fall by setting to current position
+      // Pause fall
       fallY.value = fallY.value;
     })
     .onUpdate((event) => {
@@ -114,13 +119,12 @@ export default function FallingIngredient({
       dragY.value = event.translationY;
     })
     .onEnd((event) => {
-      isDragging.value = false;
+      // Absolute position of the finger at release
+      // absoluteX/absoluteY are the finger position on screen
+      const fingerX = event.absoluteX;
+      const fingerY = event.absoluteY;
 
-      // Absolute position of ingredient center during release
-      const absX = laneX + INGREDIENT_SIZE / 2 + event.translationX;
-      const absY = fallYAtDragStart.value + INGREDIENT_SIZE / 2 + event.translationY;
-
-      if (isInsidePlateZone(absX, absY)) {
+      if (isInsidePlateZone(fingerX, fingerY)) {
         // Caught!
         isCaught.value = true;
         isCaughtRef.current = true;
@@ -128,26 +132,15 @@ export default function FallingIngredient({
         dragY.value = 0;
         runOnJS(onCatch)(id);
       } else {
-        // Snap back and resume falling
-        dragX.value = withSpring(0, { damping: 15, stiffness: 200 });
-        dragY.value = withSpring(0, { damping: 15, stiffness: 200 });
-
-        // Resume fall from current position
-        const remainingDistance = SCREEN_HEIGHT + INGREDIENT_SIZE - fallYAtDragStart.value;
-        const remainingDuration = (remainingDistance / (SCREEN_HEIGHT + INGREDIENT_SIZE * 2)) * fallDuration;
-
-        fallY.value = withTiming(
-          SCREEN_HEIGHT + INGREDIENT_SIZE,
-          {
-            duration: Math.max(remainingDuration, 500),
-            easing: Easing.linear,
-          },
-          (finished) => {
-            if (finished && !isCaughtRef.current) {
-              runOnJS(onDespawn)(id);
-            }
+        // Missed — shrink and despawn
+        isDespawningRef.current = true;
+        dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
+        dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
+        scale.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) }, (finished) => {
+          if (finished) {
+            runOnJS(onDespawn)(id);
           }
-        );
+        });
       }
     }).runOnJS(true);
 
@@ -160,6 +153,7 @@ export default function FallingIngredient({
         { translateX: laneX + dragX.value },
         { translateY: fallY.value + dragY.value },
         { rotate: `${rotation.value}deg` },
+        { scale: scale.value },
       ],
       opacity: 1,
     };
@@ -192,9 +186,10 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 10,
     top: 0,
     left: 0,
+    zIndex: 10,
   },
   emoji: {
     fontSize: 36,

@@ -3,15 +3,16 @@
  * Assembles all game components into the final playable screen.
  */
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { Audio } from 'expo-av';
 
 import { useGameEngine } from '../../../hooks/games/useGameEngine';
 import ScoreDisplay from '../../../components/games/meal-maker/ScoreDisplay';
@@ -24,8 +25,6 @@ import { Colors } from '../../../constants/Colors';
 import { Typography } from '../../../constants/Typography';
 import { Spacing } from '../../../constants/Spacing';
 import { Radius } from '../../../constants/Radius';
-import { Audio } from 'expo-av';
-
 
 interface PlateZone {
   x: number;
@@ -52,15 +51,86 @@ export default function MealMakerScreen() {
     despawnIngredient,
   } = useGameEngine();
 
-  // const sound = Audio.Sound.createAsync()
-
   const [plateZone, setPlateZone] = useState<PlateZone | null>(null);
-  // We need absolute coordinates of the plate on screen
   const plateWrapperRef = useRef<View>(null);
 
-  const handlePlateLayout = useCallback((zone: { x: number; y: number; width: number; height: number }) => {
-    // The onLayout gives us coordinates relative to the parent.
-    // We need to measure absolute position on screen.
+  // ─── Audio ───────────────────────────────────────────────────────────────────
+  const menuSoundRef = useRef<Audio.Sound | null>(null);
+  const roundSoundRef = useRef<Audio.Sound | null>(null);
+
+  const stopMenuMusic = useCallback(async () => {
+    if (menuSoundRef.current) {
+      try {
+        await menuSoundRef.current.stopAsync();
+        await menuSoundRef.current.unloadAsync();
+      } catch (_) {}
+      menuSoundRef.current = null;
+    }
+  }, []);
+
+  const stopRoundMusic = useCallback(async () => {
+    if (roundSoundRef.current) {
+      try {
+        await roundSoundRef.current.stopAsync();
+        await roundSoundRef.current.unloadAsync();
+      } catch (_) {}
+      roundSoundRef.current = null;
+    }
+  }, []);
+
+  const playMenuMusic = useCallback(async () => {
+    await stopMenuMusic();
+    await stopRoundMusic();
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/audio/menu-audio.mp3'),
+        { isLooping: true, shouldPlay: true }
+      );
+      menuSoundRef.current = sound;
+    } catch (_) {}
+  }, [stopMenuMusic, stopRoundMusic]);
+
+  const playRoundMusic = useCallback(async () => {
+    await stopMenuMusic();
+    await stopRoundMusic();
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/audio/round-audio.mp3'),
+        { isLooping: false, shouldPlay: true }
+      );
+      roundSoundRef.current = sound;
+    } catch (_) {}
+  }, [stopMenuMusic, stopRoundMusic]);
+
+  // Play menu music when screen is focused (idle state)
+  useFocusEffect(
+    useCallback(() => {
+      // Start menu music when screen gains focus
+      playMenuMusic();
+
+      return () => {
+        // Stop all music when screen loses focus (navigating away)
+        stopMenuMusic();
+        stopRoundMusic();
+      };
+    }, [playMenuMusic, stopMenuMusic, stopRoundMusic])
+  );
+
+  // Switch music based on game phase
+  useEffect(() => {
+    if (gamePhase === 'playing') {
+      playRoundMusic();
+    } else if (gamePhase === 'idle' || gamePhase === 'game_over') {
+      stopRoundMusic();
+      if (gamePhase === 'idle') {
+        playMenuMusic();
+      }
+    }
+  }, [gamePhase]);
+
+  // ─── Plate Layout ────────────────────────────────────────────────────────────
+
+  const handlePlateLayout = useCallback((_zone: { x: number; y: number; width: number; height: number }) => {
     if (plateWrapperRef.current) {
       plateWrapperRef.current.measureInWindow((x, y, width, height) => {
         setPlateZone({ x, y, width, height });
@@ -68,15 +138,20 @@ export default function MealMakerScreen() {
     }
   }, []);
 
+  // ─── Navigation ──────────────────────────────────────────────────────────────
+
   const handlePlayAgain = () => {
     resetGame();
-    // Small delay to let state reset before starting
     setTimeout(() => startGame(), 100);
   };
 
   const handleBack = () => {
     resetGame();
     router.back();
+  };
+
+  const handleStartGame = () => {
+    startGame();
   };
 
   return (
@@ -87,9 +162,9 @@ export default function MealMakerScreen() {
           <ScoreDisplay score={totalScore} timeRemaining={timeRemaining} />
         )}
 
-        {/* Game Field */}
+        {/* Game Field — ingredients render here, above the plate area */}
         <View style={styles.gameField}>
-          {/* Falling Ingredients */}
+          {/* Falling Ingredients — rendered with high zIndex to appear above plate */}
           {gamePhase === 'playing' &&
             activeIngredients.map((item) => (
               <FallingIngredient
@@ -115,14 +190,14 @@ export default function MealMakerScreen() {
               {highScore > 0 && (
                 <Text style={styles.idleHighScore}>⭐ Best: {highScore}</Text>
               )}
-              <TouchableOpacity style={styles.startButton} onPress={startGame} activeOpacity={0.85}>
+              <TouchableOpacity style={styles.startButton} onPress={handleStartGame} activeOpacity={0.85}>
                 <Text style={styles.startButtonText}>Start Game</Text>
               </TouchableOpacity>
             </View>
           )}
         </View>
 
-        {/* Plate Area — always visible during play */}
+        {/* Plate Area — sits below game field, but ingredients float above it via zIndex */}
         {(gamePhase === 'playing' || gamePhase === 'idle') && (
           <View style={styles.plateArea} ref={plateWrapperRef}>
             {/* Meal Score Popup */}
@@ -163,15 +238,17 @@ const styles = StyleSheet.create({
   gameField: {
     flex: 1,
     position: 'relative',
-    overflow: 'hidden',
+    // Do NOT use overflow: 'hidden' — it clips ingredients that overlap the plate area
+    zIndex: 1,
   },
   plateArea: {
     alignItems: 'center',
     paddingBottom: Spacing['2xl'],
     paddingTop: Spacing.sm,
-    backgroundColor: Colors.on_secondary_container,
+    backgroundColor: Colors.surface_container_low,
     borderTopLeftRadius: Radius.lg,
     borderTopRightRadius: Radius.lg,
+    zIndex: 0,
   },
 
   // Idle / Start Screen

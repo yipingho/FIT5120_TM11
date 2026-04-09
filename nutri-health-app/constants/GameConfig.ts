@@ -13,6 +13,12 @@ export const MAX_INGREDIENTS_PER_LANE = 5;
 export const MAX_ACTIVE_INGREDIENTS = 10;
 export const PLATE_CAPACITY = 3;
 
+/**
+ * After spawning in a lane, that lane is blocked for this many subsequent spawns.
+ * Prevents ingredients from stacking too closely in the same lane.
+ */
+export const LANE_BLOCK_COUNT = 3;
+
 /** Spawn interval in ms — decreases over time (speeds up spawning) */
 export const SPAWN_INTERVAL_INITIAL_MS = 1000;
 export const SPAWN_INTERVAL_MIN_MS = 100;

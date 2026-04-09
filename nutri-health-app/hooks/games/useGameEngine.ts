@@ -12,7 +12,7 @@ import {
   MAX_INGREDIENTS_PER_LANE,
   MAX_ACTIVE_INGREDIENTS,
   PLATE_CAPACITY,
-  SPAWN_INTERVAL_INITIAL_MS,
+  LANE_BLOCK_COUNT,
   IngredientDefinition,
   getRandomIngredient,
   calculateMealScore,
@@ -75,8 +75,12 @@ export function useGameEngine(): GameState & GameActions {
   const plateIngredientsRef = useRef<IngredientDefinition[]>([]);
   const isMealCompletingRef = useRef(false);
 
-  // Lane occupancy: laneIndex → count of ingredients in that lane
+  // Lane occupancy: laneIndex → count of ingredients currently in that lane
   const laneCountsRef = useRef<number[]>(new Array(NUM_LANES).fill(0));
+
+  // Lane blocking: laneIndex → number of remaining spawns this lane is blocked for
+  // After spawning in a lane, it is blocked for LANE_BLOCK_COUNT subsequent spawns.
+  const laneBlockCountdownRef = useRef<number[]>(new Array(NUM_LANES).fill(0));
 
   // ─── Cleanup ────────────────────────────────────────────────────────────────
 
@@ -121,6 +125,7 @@ export function useGameEngine(): GameState & GameActions {
     activeIngredientsRef.current = [];
     plateIngredientsRef.current = [];
     laneCountsRef.current = new Array(NUM_LANES).fill(0);
+    laneBlockCountdownRef.current = new Array(NUM_LANES).fill(0);
     isMealCompletingRef.current = false;
   }, [clearAllIntervals]);
 
@@ -138,11 +143,18 @@ export function useGameEngine(): GameState & GameActions {
         return;
       }
 
-      // Find available lanes (lanes with fewer than MAX_INGREDIENTS_PER_LANE)
+      // Decrement all lane block countdowns
+      const blockCountdowns = laneBlockCountdownRef.current;
+      const newBlockCountdowns = blockCountdowns.map((c) => Math.max(0, c - 1));
+      laneBlockCountdownRef.current = newBlockCountdowns;
+
+      // Find available lanes:
+      // - not blocked (countdown === 0)
+      // - not at max occupancy
       const laneCounts = laneCountsRef.current;
       const availableLanes = laneCounts
-        .map((count, idx) => ({ count, idx }))
-        .filter(({ count }) => count < MAX_INGREDIENTS_PER_LANE)
+        .map((count, idx) => ({ count, idx, blocked: newBlockCountdowns[idx] > 0 }))
+        .filter(({ count, blocked }) => count < MAX_INGREDIENTS_PER_LANE && !blocked)
         .map(({ idx }) => idx);
 
       if (availableLanes.length === 0) {
@@ -152,6 +164,9 @@ export function useGameEngine(): GameState & GameActions {
 
       // Pick a random available lane
       const laneIndex = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+
+      // Block this lane for the next LANE_BLOCK_COUNT spawns
+      laneBlockCountdownRef.current[laneIndex] = LANE_BLOCK_COUNT;
 
       // Pick a random ingredient
       const ingredient = getRandomIngredient();
@@ -189,6 +204,7 @@ export function useGameEngine(): GameState & GameActions {
     activeIngredientsRef.current = [];
     plateIngredientsRef.current = [];
     laneCountsRef.current = new Array(NUM_LANES).fill(0);
+    laneBlockCountdownRef.current = new Array(NUM_LANES).fill(0);
     isMealCompletingRef.current = false;
 
     setState((prev) => ({
@@ -229,6 +245,7 @@ export function useGameEngine(): GameState & GameActions {
     activeIngredientsRef.current = [];
     plateIngredientsRef.current = [];
     laneCountsRef.current = new Array(NUM_LANES).fill(0);
+    laneBlockCountdownRef.current = new Array(NUM_LANES).fill(0);
     isMealCompletingRef.current = false;
 
     getHighScore(GAME_ID).then((hs) => {
@@ -257,15 +274,15 @@ export function useGameEngine(): GameState & GameActions {
     const newPlate = [...plateIngredientsRef.current, target.ingredient];
     plateIngredientsRef.current = newPlate;
 
-    setState((prev) => ({
-      ...prev,
-      activeIngredients: activeIngredientsRef.current,
-      plateIngredients: newPlate,
-    }));
-
-    // Check for meal completion
+    // Check for meal completion — clear plate immediately, show score popup briefly
     if (newPlate.length === PLATE_CAPACITY) {
       completeMeal(newPlate);
+    } else {
+      setState((prev) => ({
+        ...prev,
+        activeIngredients: activeIngredientsRef.current,
+        plateIngredients: newPlate,
+      }));
     }
   }, []);
 
@@ -279,24 +296,27 @@ export function useGameEngine(): GameState & GameActions {
 
     totalScoreRef.current += mealScore;
 
+    // Clear plate immediately, show score popup
+    plateIngredientsRef.current = [];
+
     setState((prev) => ({
       ...prev,
+      activeIngredients: activeIngredientsRef.current,
       totalScore: totalScoreRef.current,
+      plateIngredients: [],
       lastMealScore: mealScore,
       showMealScore: true,
     }));
 
-    // Clear plate after 1.5s
+    // Hide score popup after 1s
     setTimeout(() => {
-      plateIngredientsRef.current = [];
       isMealCompletingRef.current = false;
       setState((prev) => ({
         ...prev,
-        plateIngredients: [],
         showMealScore: false,
         lastMealScore: null,
       }));
-    }, 100);
+    }, 1000);
   }, []);
 
   // ─── Despawn Ingredient ──────────────────────────────────────────────────────
