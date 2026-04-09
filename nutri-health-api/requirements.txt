@@ -10,8 +10,12 @@ psycopg2-binary==2.9.10
 python-multipart==0.0.12
 pillow==11.0.0
 
+# Data scripts (e.g. scripts/download_kaggle_data.py)
+pandas>=2.2.0
+pyarrow>=14.0.0
+kagglehub>=0.3.0
+
 # AI Integration
-# google-generativeai==0.8.3
 google-genai==1.68.0
 
 # Environment variables
@@ -24,3 +28,30 @@ passlib[bcrypt]==1.7.4
 # Utilities
 pydantic==2.10.1
 pydantic-settings==2.6.1
+
+# LangChain / RAG（按项目指定版本）
+langchain==0.3.0
+langchain-core==0.3.0
+langchain-community==0.3.0
+langchain-text-splitters==0.3.0
+langchain-openai==0.2.0
+# PyPI 已无 0.1.0；与 langchain 0.3.x 同代的最低可用线为 0.1.2+，此处固定 0.1.4
+langchain-chroma==0.1.4
+langchain-huggingface==0.1.0
+# 1.8.0 无 cp313 wheel；3.13+ 请用 1.9 及以上
+faiss-cpu==1.8.0; python_version < "3.13"
+faiss-cpu==1.12.0; python_version >= "3.13"
+chromadb==0.4.22
+# langchain-openai 0.2.0 要求 openai>=1.40,<2，不能与 1.12.0 并存
+openai>=1.40.0,<2.0.0
+tiktoken>=0.7.0
+# langchain-huggingface 0.1.0 要求 sentence-transformers>=2.6.0，与 2.2.2 冲突
+sentence-transformers>=2.6.0,<5.0.0
+
+# Qwen3-VL-Embedding 与其它 HuggingFace 栈
+torch>=2.5.0
+torchvision>=0.20.0
+transformers>=4.57.0
+qwen-vl-utils>=0.0.14
+accelerate>=1.0.0
+safetensors>=0.4.0

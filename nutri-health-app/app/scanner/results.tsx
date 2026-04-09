@@ -19,6 +19,7 @@ export default function Results() {
   const router = useRouter();
   const params = useLocalSearchParams<{
     foodName?: string;
+    assessmentScore?: string;
     healthAssessment?: string;
     nutritionalInfo?: string;
     alternatives?: string;
@@ -29,9 +30,13 @@ export default function Results() {
     ? JSON.parse(params.nutritionalInfo as string)
     : {};
   
+  const alternativesFailed = params.alternatives === undefined || params.alternatives === null;
   const alternatives = params.alternatives
     ? JSON.parse(params.alternatives as string)
     : [];
+
+  const assessmentScore = params.assessmentScore ? parseInt(params.assessmentScore) : 3;
+  const isUnhealthy = assessmentScore === 1;
 
   const handleScanAnother = () => {
     router.navigate('/scanner');
@@ -102,25 +107,31 @@ export default function Results() {
         </Card>
 
         {/* Healthier Alternatives Card */}
-        <Card style={styles.alternativesCard}>
-          <Headline size="small">Healthier Alternatives</Headline>
-          {alternatives.length > 0 ? (
-            alternatives.map((alt: any, index: number) => (
-              <View key={index} style={styles.alternativeItem}>
-                <Body size="medium">🌟 {alt.name}</Body>
-                {alt.description && (
-                  <Body size="small" color={Colors.on_surface_variant}>
-                    {alt.description}
-                  </Body>
-                )}
-              </View>
-            ))
-          ) : (
-            <Body size="medium" color={Colors.on_surface_variant}>
-              No alternatives suggested - this food might already be healthy! 🎉
-            </Body>
-          )}
-        </Card>
+        {isUnhealthy && (
+          <Card style={styles.alternativesCard}>
+            <Headline size="small">Try this instead 😊</Headline>
+            {alternativesFailed ? (
+              <Body size="medium" color={Colors.on_surface_variant}>
+                Unable to retrieve result at the moment
+              </Body>
+            ) : alternatives.length > 0 ? (
+              alternatives.map((alt: any, index: number) => (
+                <View key={index} style={styles.alternativeItem}>
+                  <Body size="medium">🌟 {alt.name}</Body>
+                  {alt.description && (
+                    <Body size="small" color={Colors.on_surface_variant}>
+                      {alt.description}
+                    </Body>
+                  )}
+                </View>
+              ))
+            ) : (
+              <Body size="medium" color={Colors.on_surface_variant}>
+                No alternative available at the moment
+              </Body>
+            )}
+          </Card>
+        )}
 
         {/* Action Button */}
         <View style={styles.actionContainer}>
