@@ -74,7 +74,7 @@ export default function MealMakerScreen() {
         {
           isLooping: true,
           shouldPlay: true,
-          volume: 0.5,
+          volume: 0.7,
         }
       );
 

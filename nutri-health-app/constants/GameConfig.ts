@@ -10,7 +10,7 @@
 export const ROUND_DURATION_SECONDS = 60;
 export const NUM_LANES = 6;
 export const MAX_INGREDIENTS_PER_LANE = 5;
-export const MAX_ACTIVE_INGREDIENTS = 10;
+export const MAX_ACTIVE_INGREDIENTS = 8;
 export const PLATE_CAPACITY = 3;
 
 /**
