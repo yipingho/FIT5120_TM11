@@ -38,18 +38,18 @@ Tone and style rules:
 - Never use fear-based, negative, or warning language
 - Do NOT include any calorie information anywhere
 
-For nutritional_info fields (carbohydrates, protein, fats):
-- First line: numeric estimate with unit (e.g. "12.5g")
-- Second line: one simple sentence explaining what it helps with
-- No emojis in nutritional_info
+For nutritional_info fields (carbohydrates, protein, fats), each must be an object with:
+- "amount": numeric estimate with unit only (e.g. "12.5g")
+- "description": one simple sentence explaining what it helps with (no emojis)
 
 For assessment:
 - Max 3 sentences: praise something good, suggest one pairing, encouraging close
 - At most 4 emojis naturally placed
 
 For alternatives:
-- 2-3 options if the food is unhealthy or moderate
-- Real food names only, 1-2 key benefits in child-friendly language
+- Exactly 2 options if the food is unhealthy or moderate, otherwise 0
+- Each name must start with a relevant food emoji (e.g. "🍎 Apple Slices")
+- 1-2 key benefits in child-friendly language in the description
 
 Respond with ONLY the JSON object, no additional text.
 """
@@ -69,16 +69,31 @@ ANALYSIS_RESPONSE_SCHEMA = {
             "type": "object",
             "properties": {
                 "carbohydrates": {
-                    "type": "string",
-                    "description": "e.g. '12.5g\\nHelps you run and play all afternoon'"
+                    "type": "object",
+                    "properties": {
+                        "amount": {"type": "string", "description": "e.g. '12.5g'"},
+                        "description": {"type": "string", "description": "e.g. 'Helps you run and play all afternoon'"}
+                    },
+                    "required": ["amount", "description"],
+                    "additionalProperties": False
                 },
                 "protein": {
-                    "type": "string",
-                    "description": "e.g. '5.0g\\nBuilds strong muscles and helps you grow'"
+                    "type": "object",
+                    "properties": {
+                        "amount": {"type": "string", "description": "e.g. '5.0g'"},
+                        "description": {"type": "string", "description": "e.g. 'Builds strong muscles and helps you grow'"}
+                    },
+                    "required": ["amount", "description"],
+                    "additionalProperties": False
                 },
                 "fats": {
-                    "type": "string",
-                    "description": "e.g. '8.0g\\nKeeps your brain sharp and body warm'"
+                    "type": "object",
+                    "properties": {
+                        "amount": {"type": "string", "description": "e.g. '8.0g'"},
+                        "description": {"type": "string", "description": "e.g. 'Keeps your brain sharp and body warm'"}
+                    },
+                    "required": ["amount", "description"],
+                    "additionalProperties": False
                 }
             },
             "required": ["carbohydrates", "protein", "fats"],
@@ -95,10 +110,11 @@ ANALYSIS_RESPONSE_SCHEMA = {
         },
         "alternatives": {
             "type": "array",
+            "maxItems": 2,
             "items": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
+                    "name": {"type": "string", "description": "Food name starting with a relevant emoji, e.g. '🍎 Apple Slices'"},
                     "description": {"type": "string"}
                 },
                 "required": ["name", "description"],
@@ -339,9 +355,10 @@ class GeminiService:
         prompt = (
             "Rewrite the descriptions of these food alternatives for children aged 7-12.\n"
             "Rules:\n"
-            "- Keep the 'name' field exactly as given, do not change it\n"
+            "- Output at most 2 items — if given more, keep only the best 2\n"
+            "- If the name does not start with a food emoji, add one at the beginning\n"
             "- Rewrite 'description' to be simple, warm, and encouraging (1-2 sentences)\n"
-            "- No emojis, no calories\n"
+            "- No calorie information\n"
             "- Output only the JSON array, nothing else\n\n"
             "Input:\n"
             + json.dumps(alternatives, ensure_ascii=False)
@@ -370,9 +387,10 @@ class GeminiService:
         prompt = (
             "Rewrite the descriptions of these food alternatives for children aged 7-12.\n"
             "Rules:\n"
-            "- Keep the 'name' field exactly as given, do not change it\n"
+            "- Output at most 2 items — if given more, keep only the best 2\n"
+            "- If the name does not start with a food emoji, add one at the beginning\n"
             "- Rewrite 'description' to be simple, warm, and encouraging (1-2 sentences)\n"
-            "- No emojis, no calories\n"
+            "- No calorie information\n"
             "- Output only the JSON array, nothing else\n\n"
             "Input:\n"
             + json.dumps(alternatives, ensure_ascii=False)
@@ -419,19 +437,19 @@ class GeminiService:
             "confidence": 0,
             "food_name": "Food Item",
             "nutritional_info": {
-                "carbohydrates": "0g\nHelps give you energy to play",
-                "protein": "0g\nHelps your muscles grow strong",
-                "fats": "0g\nKeeps your brain and body working well"
+                "carbohydrates": {"amount": "0g", "description": "Helps give you energy to play"},
+                "protein": {"amount": "0g", "description": "Helps your muscles grow strong"},
+                "fats": {"amount": "0g", "description": "Keeps your brain and body working well"}
             },
             "assessment_score": 1,
             "assessment": "We're having trouble analysing this food right now. Please try again later, or ask a grown-up to help you learn about this food! 🌟",
             "alternatives": [
                 {
-                    "name": "Fresh Fruits",
+                    "name": "🍎 Fresh Fruits",
                     "description": "Fruits are always a great choice — naturally sweet and full of goodness!"
                 },
                 {
-                    "name": "Vegetables",
+                    "name": "🥦 Vegetables",
                     "description": "Colourful veggies help you grow strong and feel great!"
                 }
             ]
