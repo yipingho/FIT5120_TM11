@@ -9,7 +9,7 @@ import {
   StyleSheet,
   TouchableOpacity,
 } from 'react-native';
-import { useRouter, useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect, useNavigation } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Audio } from 'expo-av';
 
@@ -34,6 +34,7 @@ interface PlateZone {
 
 export default function MealMakerScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
 
   const {
     gamePhase,
@@ -156,9 +157,17 @@ export default function MealMakerScreen() {
   // Handle screen focus / blur correctly
   useFocusEffect(
     useCallback(() => {
+      const parent = navigation.getParent();
+      if (parent) {
+        parent.setOptions({ swipeEnabled: false });
+      }
+
       playMenuMusic();
 
       return () => {
+        if (parent) {
+          parent.setOptions({ swipeEnabled: true });
+        }
         stopMenuMusic();
         stopRoundMusic();
       };

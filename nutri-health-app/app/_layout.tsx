@@ -93,7 +93,7 @@ export default function RootLayout() {
             title: 'Games',
             // Drawer swipe is disabled for the games section via the Stack's gestureEnabled: false
             // The drawer toggle button is hidden on game screens since they use headerShown: false
-            swipeEnabled: false,
+            // swipeEnabled: false,
           }}
         />
       </Drawer>
