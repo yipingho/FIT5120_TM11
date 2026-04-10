@@ -52,8 +52,8 @@ export default function MealScorePopup({ score, visible }: MealScorePopupProps) 
   if (!visible && opacity.value === 0) return null;
 
   return (
-    <Animated.Text style={[styles.text, animatedStyle]}>
-      +{score} pts!
+    <Animated.Text style={[styles.text, animatedStyle, {color: score >= 0 ? Colors.primary : Colors.tertiary}]}>
+      {score >= 0 ? `+${score}`: `${score}`}
     </Animated.Text>
   );
 }
@@ -61,7 +61,6 @@ export default function MealScorePopup({ score, visible }: MealScorePopupProps) 
 const styles = StyleSheet.create({
   text: {
     ...Typography.displaySmall,
-    color: Colors.primary,
     textAlign: 'center',
     textShadowColor: 'rgba(0,107,27,0.2)',
     textShadowOffset: { width: 0, height: 2 },

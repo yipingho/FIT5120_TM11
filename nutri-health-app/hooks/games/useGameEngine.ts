@@ -328,6 +328,7 @@ export function useGameEngine(): GameState & GameActions {
     const mealScore = calculateMealScore(categories);
 
     totalScoreRef.current += mealScore;
+    if (totalScoreRef.current < 0) totalScoreRef.current = 0;
 
     // Clear plate immediately — plate is ready for new ingredients right away
     plateIngredientsRef.current = [];

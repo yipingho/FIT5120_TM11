@@ -104,8 +104,8 @@ export const MEAL_SCORE_TABLE: Record<string, number> = {
   VVV: 8,
   CCC: 5,
   PPP: 7,
-  JJJ: 0,
-  KKK: 0,
+  JJJ: -8,
+  KKK: -10,
 
   // 2 vegetables
   CVV: 8,
@@ -126,28 +126,28 @@ export const MEAL_SCORE_TABLE: Record<string, number> = {
   KPP: 3,
 
   // 2 junk
-  JJV: 2,
+  JJV: 1,
   CJJ: 1,
   JJP: 1,
-  JJK: 0,
+  JJK: -8,
 
   // 2 candy
-  KKV: 2,
-  CKK: 1,
-  KKP: 1,
-  JKK: 0,
+  KKV: 0,
+  CKK: 0,
+  KKP: 0,
+  JKK: -8,
 
   // 1 of each (mixed triples)
   CPV: 10,  // vegetable + carb + protein (best combo)
   CJV: 4,
-  CKV: 4,
+  CKV: 3,
   JPV: 4,
-  KPV: 4,
-  JKV: 2,
-  CJP: 3,
+  KPV: 3,
+  JKV: 0,
+  CJP: 4,
   CKP: 3,
-  CJK: 1,
-  JKP: 1,
+  CJK: 0,
+  JKP: 0,
 };
 
 /**
