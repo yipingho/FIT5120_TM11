@@ -1,11 +1,16 @@
 /**
  * FallingIngredient — Animated ingredient that falls from top to bottom.
- * Supports simultaneous multi-touch drag-to-catch gestures.
- * On missed drop: shrinks and despawns instead of resuming fall.
+ *
+ * Uses React Native's native touch responder system (onResponderGrant/Move/Release)
+ * instead of react-native-gesture-handler's Pan gesture. This allows multiple
+ * ingredients to be dragged simultaneously with different fingers, since each
+ * View has its own independent responder — no shared gesture state.
+ *
+ * On missed drop: shrinks and despawns.
  */
 
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Dimensions, Text } from 'react-native';
+import { StyleSheet, Dimensions, Text, GestureResponderEvent } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,10 +19,8 @@ import Animated, {
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { IngredientDefinition, NUM_LANES } from '../../../constants/GameConfig';
 import { Radius } from '../../../constants/Radius';
-import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const INGREDIENT_SIZE = 70;
@@ -58,7 +61,7 @@ export default function FallingIngredient({
   const fallY = useSharedValue(-INGREDIENT_SIZE);
   // Spin animation
   const rotation = useSharedValue(0);
-  // Drag offset — tracks the active finger's translation
+  // Drag offset
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   // Scale — used for shrink-on-miss despawn
@@ -66,23 +69,20 @@ export default function FallingIngredient({
   // Whether caught (hide after catch)
   const isCaught = useSharedValue(false);
 
-  // Track fall Y at drag start for plate zone calculation
-  const fallYAtDragStart = useSharedValue(0);
-
   const isCaughtRef = useRef(false);
   const isDespawningRef = useRef(false);
-  // Track which pointer ID is currently dragging this ingredient
-  // so we ignore other simultaneous touches on this element
-  const activeTouchIdRef = useRef<number | null>(null);
+
+  // Touch start position (absolute screen coords) for computing drag delta
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  // Fall Y value at the moment the drag started
+  const fallYAtDragStart = useRef(0);
 
   useEffect(() => {
     // Start fall animation
     fallY.value = withTiming(
       SCREEN_HEIGHT + INGREDIENT_SIZE,
-      {
-        duration: fallDuration,
-        easing: Easing.linear,
-      },
+      { duration: fallDuration, easing: Easing.linear },
       (finished) => {
         if (finished && !isCaughtRef.current && !isDespawningRef.current) {
           runOnJS(onDespawn)(id);
@@ -109,10 +109,31 @@ export default function FallingIngredient({
     return Math.sqrt(dx * dx + dy * dy) <= PLATE_CATCH_RADIUS;
   };
 
-  const handleRelease = (fingerX: number, fingerY: number) => {
+  // ─── Responder handlers ──────────────────────────────────────────────────────
+
+  const handleGrant = (evt: GestureResponderEvent) => {
     if (isCaughtRef.current || isDespawningRef.current) return;
 
-    activeTouchIdRef.current = null;
+    touchStartX.current = evt.nativeEvent.pageX;
+    touchStartY.current = evt.nativeEvent.pageY;
+    // Snapshot the current fall position so we can compute drag delta correctly
+    fallYAtDragStart.current = fallY.value;
+    // Pause fall at current position
+    fallY.value = fallY.value;
+  };
+
+  const handleMove = (evt: GestureResponderEvent) => {
+    if (isCaughtRef.current || isDespawningRef.current) return;
+
+    dragX.value = evt.nativeEvent.pageX - touchStartX.current;
+    dragY.value = evt.nativeEvent.pageY - touchStartY.current;
+  };
+
+  const handleRelease = (evt: GestureResponderEvent) => {
+    if (isCaughtRef.current || isDespawningRef.current) return;
+
+    const fingerX = evt.nativeEvent.pageX;
+    const fingerY = evt.nativeEvent.pageY;
 
     if (isInsidePlateZone(fingerX, fingerY)) {
       // Caught!
@@ -120,7 +141,7 @@ export default function FallingIngredient({
       isCaughtRef.current = true;
       dragX.value = 0;
       dragY.value = 0;
-      runOnJS(onCatch)(id);
+      onCatch(id);
     } else {
       // Missed — shrink and despawn
       isDespawningRef.current = true;
@@ -134,44 +155,15 @@ export default function FallingIngredient({
     }
   };
 
-  const panGesture = Gesture.Pan()
-    // Allow this gesture to run simultaneously with other pan gestures
-    // (i.e. other FallingIngredient components being dragged at the same time)
-    .simultaneousWithExternalGesture()
-    .minDistance(0)
-    .onTouchesDown((event) => {
-      // Only claim the first touch that hits this ingredient
-      if (activeTouchIdRef.current === null && event.changedTouches.length > 0) {
-        activeTouchIdRef.current = event.changedTouches[0].id;
-        fallYAtDragStart.value = fallY.value;
-        // Pause fall at current position
-        fallY.value = fallY.value;
-      }
-    })
-    .onUpdate((event) => {
-      if (isCaughtRef.current || isDespawningRef.current) return;
-      dragX.value = event.translationX;
-      dragY.value = event.translationY;
-    })
-    .onEnd((event) => {
-      handleRelease(event.absoluteX, event.absoluteY);
-    })
-    .onTouchesUp((event) => {
-      // Handle tap (when onEnd may not fire) and multi-touch release
-      const touch = event.changedTouches.find((t) => t.id === activeTouchIdRef.current);
-      if (touch) {
-        handleRelease(touch.absoluteX, touch.absoluteY);
-      }
-    })
-    .onFinalize(() => {
-      // Safety net: if gesture is cancelled/interrupted, reset drag
-      if (!isCaughtRef.current && !isDespawningRef.current) {
-        activeTouchIdRef.current = null;
-        dragX.value = 0;
-        dragY.value = 0;
-      }
-    })
-    .runOnJS(true);
+  const handleTerminate = () => {
+    // Gesture was stolen by another responder — reset drag state
+    if (!isCaughtRef.current && !isDespawningRef.current) {
+      dragX.value = 0;
+      dragY.value = 0;
+    }
+  };
+
+  // ─── Animated style ──────────────────────────────────────────────────────────
 
   const animatedStyle = useAnimatedStyle(() => {
     if (isCaught.value) {
@@ -189,17 +181,22 @@ export default function FallingIngredient({
   });
 
   return (
-    <GestureDetector gesture={panGesture}>
-      <Animated.View
-        style={[
-          styles.ingredient,
-          { backgroundColor: ingredient.color },
-          animatedStyle,
-        ]}
-      >
-        <Text style={styles.emoji}>{ingredient.emoji}</Text>
-      </Animated.View>
-    </GestureDetector>
+    <Animated.View
+      style={[
+        styles.ingredient,
+        { backgroundColor: ingredient.color },
+        animatedStyle,
+      ]}
+      // Native responder system — each View is an independent responder
+      onStartShouldSetResponder={() => !isCaughtRef.current && !isDespawningRef.current}
+      onMoveShouldSetResponder={() => !isCaughtRef.current && !isDespawningRef.current}
+      onResponderGrant={handleGrant}
+      onResponderMove={handleMove}
+      onResponderRelease={handleRelease}
+      onResponderTerminate={handleTerminate}
+    >
+      <Text style={styles.emoji}>{ingredient.emoji}</Text>
+    </Animated.View>
   );
 }
 
