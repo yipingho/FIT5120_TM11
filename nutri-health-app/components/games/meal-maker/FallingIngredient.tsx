@@ -89,7 +89,7 @@ export default function FallingIngredient({
     );
 
     // Random spin direction and speed
-    const spinDuration = 1600 + Math.random() * 600;
+    const spinDuration = 3200 + Math.random() * 600;
     const spinDirection = Math.random() > 0.5 ? 360 : -360;
     rotation.value = withRepeat(
       withTiming(spinDirection, { duration: spinDuration, easing: Easing.linear }),
@@ -123,7 +123,7 @@ export default function FallingIngredient({
       isDespawningRef.current = true;
       dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
       dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
-      scale.value = withTiming(0, { duration: 300, easing: Easing.in(Easing.ease) }, (finished) => {
+      scale.value = withTiming(0, { duration: 150, easing: Easing.in(Easing.ease) }, (finished) => {
         if (finished) {
           runOnJS(onDespawn)(id);
         }

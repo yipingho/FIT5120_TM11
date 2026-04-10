@@ -65,7 +65,7 @@ export const INGREDIENTS: IngredientDefinition[] = [
   { id: 'chicken',     name: 'Chicken',    category: 'protein',       emoji: '🍗', color: '#FFCC80' },
   { id: 'egg',         name: 'Egg',        category: 'protein',       emoji: '🥚', color: '#FFF8E1' },
   { id: 'fish',        name: 'Fish',       category: 'protein',       emoji: '🐟', color: '#80DEEA' },
-  { id: 'tofu',        name: 'Tofu',       category: 'protein',       emoji: '🫘', color: '#F5F5DC' },
+  { id: 'meat',        name: 'Meat',       category: 'protein',       emoji: '🍖', color: '#F5F5DC' },
   { id: 'beef',        name: 'Beef',       category: 'protein',       emoji: '🥩', color: '#EF9A9A' },
 
   // Junk Food
