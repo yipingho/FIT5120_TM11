@@ -51,7 +51,6 @@ const getStoryTextStyle = (storyId: string) => {
 
 export default function StoryViewerScreen() {
   const params = useLocalSearchParams();
-  const router = useRouter();
   const navigation = useNavigation();
   const parent = navigation.getParent();
   const storyId = params.id as string;

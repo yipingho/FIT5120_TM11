@@ -54,27 +54,25 @@ export default function MealMakerScreen() {
   const [plateZone, setPlateZone] = useState<PlateZone | null>(null);
   const plateWrapperRef = useRef<View>(null);
 
-  // ─── MENU AUDIO ONLY (FIXED) ────────────────────────────────────────────────
+  // ─── AUDIO ────────────────────────────────────────────────
 
   const menuSoundRef = useRef<Audio.Sound | null>(null);
   const isMenuPlayingRef = useRef(false);
 
+  const roundSoundRef = useRef<Audio.Sound | null>(null);
+  const isRoundPlayingRef = useRef(false);
+
   const playMenuMusic = useCallback(async () => {
     // Prevent duplicate playback
-    if (isMenuPlayingRef.current) return;
+    if (menuSoundRef.current) return;
 
     try {
-      // Clean up any existing sound just in case
-      if (menuSoundRef.current) {
-        await menuSoundRef.current.unloadAsync().catch(() => {});
-        menuSoundRef.current = null;
-      }
-
       const { sound } = await Audio.Sound.createAsync(
         require('../../../assets/audio/menu-audio.mp3'),
         {
           isLooping: true,
           shouldPlay: true,
+          volume: 0.5,
         }
       );
 
@@ -85,6 +83,10 @@ export default function MealMakerScreen() {
 
   const stopMenuMusic = useCallback(async () => {
     const sound = menuSoundRef.current;
+    // Immediately clear ref (prevents overlap)
+    menuSoundRef.current = null;
+    isMenuPlayingRef.current = false;
+
     if (!sound) return;
 
     try {
@@ -99,6 +101,58 @@ export default function MealMakerScreen() {
     isMenuPlayingRef.current = false;
   }, []);
 
+  const playRoundMusic = useCallback(async () => {
+    // Prevent duplicates
+    if (isRoundPlayingRef.current) return;
+
+    try {
+      // Stop menu music first
+      await stopMenuMusic();
+
+      // Clean up existing round sound
+      if (roundSoundRef.current) {
+        await roundSoundRef.current.unloadAsync().catch(() => {});
+        roundSoundRef.current = null;
+      }
+
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../../assets/audio/round-audio.mp3'),
+        {
+          isLooping: false,
+          shouldPlay: true,
+        }
+      );
+
+      roundSoundRef.current = sound;
+      isRoundPlayingRef.current = true;
+
+      // When round music finishes naturally, reset state
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+        if (status.didJustFinish) {
+          isRoundPlayingRef.current = false;
+          roundSoundRef.current = null;
+        }
+      });
+    } catch (_) {}
+  }, [stopMenuMusic]);
+
+  const stopRoundMusic = useCallback(async () => {
+    const sound = roundSoundRef.current;
+    if (!sound) return;
+
+    try {
+      await sound.stopAsync();
+    } catch (_) {}
+
+    try {
+      await sound.unloadAsync();
+    } catch (_) {}
+
+    roundSoundRef.current = null;
+    isRoundPlayingRef.current = false;
+  }, []);
+
   // Handle screen focus / blur correctly
   useFocusEffect(
     useCallback(() => {
@@ -106,9 +160,19 @@ export default function MealMakerScreen() {
 
       return () => {
         stopMenuMusic();
+        stopRoundMusic();
       };
-    }, [playMenuMusic, stopMenuMusic])
+    }, [playMenuMusic, stopMenuMusic, stopRoundMusic])
   );
+
+  useEffect(() => {
+    if (gamePhase === 'playing') {
+      playRoundMusic();
+    } else if (gamePhase === 'idle' || gamePhase === 'game_over') {
+      // Stop round → resume menu
+      stopRoundMusic();
+    }
+  }, [gamePhase, playRoundMusic, stopRoundMusic, playMenuMusic]);
 
   // ─── Plate Layout ────────────────────────────────────────────────────────────
 

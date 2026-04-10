@@ -29,7 +29,7 @@ export const SPAWN_INTERVAL_STEP_MS = 200;
 /** Fall duration in ms — decreases over time (ingredients fall faster) */
 export const FALL_DURATION_INITIAL_MIN_MS = 4000;
 export const FALL_DURATION_INITIAL_MAX_MS = 6000;
-export const FALL_DURATION_MIN_MS = 1800;
+export const FALL_DURATION_MIN_MS = 2300;
 /** Every X seconds, fall duration decreases by FALL_DURATION_STEP_MS */
 export const FALL_DIFFICULTY_STEP_SECONDS = 5;
 export const FALL_DURATION_STEP_MS = 300;

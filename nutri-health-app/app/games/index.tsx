@@ -2,7 +2,7 @@
  * Games Hub — Grid of available games
  */
 
-import React, { useEffect, useState, useRef, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
