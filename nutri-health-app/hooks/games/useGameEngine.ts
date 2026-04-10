@@ -289,15 +289,14 @@ export function useGameEngine(): GameState & GameActions {
   // ─── Complete Meal ───────────────────────────────────────────────────────────
 
   const completeMeal = useCallback((plate: IngredientDefinition[]) => {
-    isMealCompletingRef.current = true;
-
     const categories = plate.map((i) => i.category);
     const mealScore = calculateMealScore(categories);
 
     totalScoreRef.current += mealScore;
 
-    // Clear plate immediately, show score popup
+    // Clear plate immediately — plate is ready for new ingredients right away
     plateIngredientsRef.current = [];
+    isMealCompletingRef.current = false;
 
     setState((prev) => ({
       ...prev,
@@ -308,9 +307,8 @@ export function useGameEngine(): GameState & GameActions {
       showMealScore: true,
     }));
 
-    // Hide score popup after 1s
+    // Hide score popup after 1s (plate is already accepting ingredients)
     setTimeout(() => {
-      isMealCompletingRef.current = false;
       setState((prev) => ({
         ...prev,
         showMealScore: false,

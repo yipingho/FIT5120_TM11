@@ -121,6 +121,7 @@ export default function MealMakerScreen() {
         {
           isLooping: false,
           shouldPlay: true,
+          volume: 0.5
         }
       );
 
@@ -250,13 +251,19 @@ export default function MealMakerScreen() {
 
         {(gamePhase === 'playing' || gamePhase === 'idle') && (
           <View style={styles.plateArea} ref={plateWrapperRef}>
-            <MealScorePopup
-              score={lastMealScore ?? 0}
-              visible={showMealScore}
-            />
             <Plate
               plateIngredients={plateIngredients}
               onPlateLayout={handlePlateLayout}
+            />
+          </View>
+        )}
+
+        {/* Meal Score Popup — centered at top of game field, above everything */}
+        {gamePhase === 'playing' && (
+          <View style={styles.scorePopupContainer} pointerEvents="none">
+            <MealScorePopup
+              score={lastMealScore ?? 0}
+              visible={showMealScore}
             />
           </View>
         )}
@@ -317,6 +324,14 @@ const styles = StyleSheet.create({
   idleHighScore: {
     ...Typography.titleMedium,
     color: Colors.primary,
+  },
+  scorePopupContainer: {
+    position: 'absolute',
+    top: 80, // below the HUD
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 20,
   },
   startButton: {
     backgroundColor: Colors.primary,
