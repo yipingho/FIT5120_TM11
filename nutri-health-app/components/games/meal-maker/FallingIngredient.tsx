@@ -1,6 +1,6 @@
 /**
  * FallingIngredient — Animated ingredient that falls from top to bottom.
- * Supports drag-to-catch gesture. Has random spin animation.
+ * Supports simultaneous multi-touch drag-to-catch gestures.
  * On missed drop: shrinks and despawns instead of resuming fall.
  */
 
@@ -11,7 +11,6 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withRepeat,
-  withSpring,
   runOnJS,
   Easing,
 } from 'react-native-reanimated';
@@ -24,8 +23,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const INGREDIENT_SIZE = 70;
 const LANE_WIDTH = SCREEN_WIDTH / NUM_LANES;
 
-// Plate zone detection: use a generous radius around the plate center
-// The plate is 200px wide, so radius ~120px gives good coverage
+// Plate zone detection radius around the plate center
 const PLATE_CATCH_RADIUS = 120;
 
 interface PlateZone {
@@ -60,7 +58,7 @@ export default function FallingIngredient({
   const fallY = useSharedValue(-INGREDIENT_SIZE);
   // Spin animation
   const rotation = useSharedValue(0);
-  // Drag offset
+  // Drag offset — tracks the active finger's translation
   const dragX = useSharedValue(0);
   const dragY = useSharedValue(0);
   // Scale — used for shrink-on-miss despawn
@@ -73,6 +71,9 @@ export default function FallingIngredient({
 
   const isCaughtRef = useRef(false);
   const isDespawningRef = useRef(false);
+  // Track which pointer ID is currently dragging this ingredient
+  // so we ignore other simultaneous touches on this element
+  const activeTouchIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     // Start fall animation
@@ -101,7 +102,6 @@ export default function FallingIngredient({
 
   const isInsidePlateZone = (fingerX: number, fingerY: number): boolean => {
     if (!plateZone) return false;
-    // Use the center of the plate zone
     const cx = plateZone.x + plateZone.width / 2;
     const cy = plateZone.y + plateZone.height / 2;
     const dx = fingerX - cx;
@@ -111,6 +111,8 @@ export default function FallingIngredient({
 
   const handleRelease = (fingerX: number, fingerY: number) => {
     if (isCaughtRef.current || isDespawningRef.current) return;
+
+    activeTouchIdRef.current = null;
 
     if (isInsidePlateZone(fingerX, fingerY)) {
       // Caught!
@@ -122,8 +124,8 @@ export default function FallingIngredient({
     } else {
       // Missed — shrink and despawn
       isDespawningRef.current = true;
-      dragX.value = withSpring(0, { damping: 20, stiffness: 300 });
-      dragY.value = withSpring(0, { damping: 20, stiffness: 300 });
+      dragX.value = 0;
+      dragY.value = 0;
       scale.value = withTiming(0, { duration: 150, easing: Easing.in(Easing.ease) }, (finished) => {
         if (finished) {
           runOnJS(onDespawn)(id);
@@ -133,13 +135,21 @@ export default function FallingIngredient({
   };
 
   const panGesture = Gesture.Pan()
-    .onBegin(() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      fallYAtDragStart.value = fallY.value;
-      // Pause fall
-      fallY.value = fallY.value;
+    // Allow this gesture to run simultaneously with other pan gestures
+    // (i.e. other FallingIngredient components being dragged at the same time)
+    .simultaneousWithExternalGesture()
+    .minDistance(0)
+    .onTouchesDown((event) => {
+      // Only claim the first touch that hits this ingredient
+      if (activeTouchIdRef.current === null && event.changedTouches.length > 0) {
+        activeTouchIdRef.current = event.changedTouches[0].id;
+        fallYAtDragStart.value = fallY.value;
+        // Pause fall at current position
+        fallY.value = fallY.value;
+      }
     })
     .onUpdate((event) => {
+      if (isCaughtRef.current || isDespawningRef.current) return;
       dragX.value = event.translationX;
       dragY.value = event.translationY;
     })
@@ -147,10 +157,18 @@ export default function FallingIngredient({
       handleRelease(event.absoluteX, event.absoluteY);
     })
     .onTouchesUp((event) => {
-      // Fires even on a simple tap (when onEnd may not fire)
-      const touch = event.changedTouches[0];
+      // Handle tap (when onEnd may not fire) and multi-touch release
+      const touch = event.changedTouches.find((t) => t.id === activeTouchIdRef.current);
       if (touch) {
         handleRelease(touch.absoluteX, touch.absoluteY);
+      }
+    })
+    .onFinalize(() => {
+      // Safety net: if gesture is cancelled/interrupted, reset drag
+      if (!isCaughtRef.current && !isDespawningRef.current) {
+        activeTouchIdRef.current = null;
+        dragX.value = 0;
+        dragY.value = 0;
       }
     })
     .runOnJS(true);
