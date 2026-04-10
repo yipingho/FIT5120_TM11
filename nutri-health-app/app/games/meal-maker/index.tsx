@@ -24,6 +24,7 @@ import { Colors } from '../../../constants/Colors';
 import { Typography } from '../../../constants/Typography';
 import { Spacing } from '../../../constants/Spacing';
 import { Radius } from '../../../constants/Radius';
+import { Ionicons } from '@expo/vector-icons';
 
 interface PlateZone {
   x: number;
@@ -159,16 +160,22 @@ export default function MealMakerScreen() {
   useFocusEffect(
     useCallback(() => {
       const parent = navigation.getParent();
-      if (parent) {
-        parent.setOptions({ swipeEnabled: false });
-      }
+      parent?.setOptions({
+        swipeEnabled: false,
+        headerRight: () => (
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={{ marginRight: 16 }}
+          >
+            <Ionicons name="arrow-back" size={24}/>
+          </TouchableOpacity>
+        ),
+      });
 
       playMenuMusic();
 
       return () => {
-        if (parent) {
-          parent.setOptions({ swipeEnabled: true });
-        }
+        parent?.setOptions({ swipeEnabled: true, headerRight: undefined });
         stopMenuMusic();
         stopRoundMusic();
       };

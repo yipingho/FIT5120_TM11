@@ -6,6 +6,8 @@
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Audio } from 'expo-av';
+import * as Haptics from 'expo-haptics';
 import {
   ROUND_DURATION_SECONDS,
   NUM_LANES,
@@ -258,6 +260,21 @@ export function useGameEngine(): GameState & GameActions {
 
   // ─── Catch Ingredient ────────────────────────────────────────────────────────
 
+  const playCatchIngredientSound = useCallback(async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/audio/pop.mp3'), { shouldPlay: true }
+      );
+  
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+        if (status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (_) {}
+  }, []);
+
   const catchIngredient = useCallback((id: string) => {
     const active = activeIngredientsRef.current;
     const target = active.find((i) => i.id === id);
@@ -271,6 +288,7 @@ export function useGameEngine(): GameState & GameActions {
     laneCountsRef.current[target.laneIndex] = Math.max(0, laneCountsRef.current[target.laneIndex] - 1);
 
     // Add to plate
+    playCatchIngredientSound();
     const newPlate = [...plateIngredientsRef.current, target.ingredient];
     plateIngredientsRef.current = newPlate;
 
@@ -288,7 +306,24 @@ export function useGameEngine(): GameState & GameActions {
 
   // ─── Complete Meal ───────────────────────────────────────────────────────────
 
+  const playMealCompleteSound = useCallback(async () => {
+    try {
+      const { sound } = await Audio.Sound.createAsync(
+        require('../../assets/audio/meal-complete.mp3'), { shouldPlay: true }
+      );
+
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+        if (status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+    } catch (_) {}
+  }, []);
+
   const completeMeal = useCallback((plate: IngredientDefinition[]) => {
+    playMealCompleteSound();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     const categories = plate.map((i) => i.category);
     const mealScore = calculateMealScore(categories);
 

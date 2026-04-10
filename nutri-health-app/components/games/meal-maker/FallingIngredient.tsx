@@ -18,6 +18,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { IngredientDefinition, NUM_LANES } from '../../../constants/GameConfig';
 import { Radius } from '../../../constants/Radius';
+import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const INGREDIENT_SIZE = 70;
@@ -133,6 +134,7 @@ export default function FallingIngredient({
 
   const panGesture = Gesture.Pan()
     .onBegin(() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       fallYAtDragStart.value = fallY.value;
       // Pause fall
       fallY.value = fallY.value;
