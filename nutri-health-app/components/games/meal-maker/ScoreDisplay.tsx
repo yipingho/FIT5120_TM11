@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors } from '../../../constants/Colors';
 import { Typography } from '../../../constants/Typography';
@@ -30,10 +30,6 @@ export default function ScoreDisplay({ score, timeRemaining, onBack }: ScoreDisp
   return (
     <View style={[styles.container, { paddingTop: insets.top + Spacing.sm }]}>
       <View style={styles.inner}>
-        {/* Back arrow — replaces drawer toggle during a round */}
-        <TouchableOpacity style={styles.backButton} onPress={onBack} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
 
         <View style={styles.hudItems}>
           <View style={styles.item}>
@@ -48,9 +44,6 @@ export default function ScoreDisplay({ score, timeRemaining, onBack }: ScoreDisp
             <Text style={styles.value}>{score}</Text>
           </View>
         </View>
-
-        {/* Spacer to balance the back button */}
-        <View style={styles.backButtonSpacer} />
       </View>
     </View>
   );
@@ -67,19 +60,6 @@ const styles = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  backButton: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: {
-    fontSize: 26,
-    color: Colors.on_surface,
-    lineHeight: 30,
-  },
-  backButtonSpacer: {
-    width: 40,
   },
   hudItems: {
     flex: 1,
