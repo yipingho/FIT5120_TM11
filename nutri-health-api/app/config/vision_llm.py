@@ -34,6 +34,7 @@ class DashScopeOpenAISettings(BaseSettings):
     dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
     qwen_vl_model: str = "qwen3-vl-plus"
     qwen_text_model: str = "qwen-plus"
+    qwen_embedding_model: str = "text-embedding-v3"
     qwen_vl_stream: bool = False
     qwen_vl_enable_thinking: bool = False
     qwen_vl_thinking_budget: int = 81920
