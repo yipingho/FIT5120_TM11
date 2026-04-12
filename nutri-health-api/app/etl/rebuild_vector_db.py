@@ -1,10 +1,10 @@
 """
-One-time ETL script: rebuild FAISS vector index using OpenAI Embeddings API.
+One-time ETL script: rebuild FAISS vector index using Qwen (DashScope) Embeddings API.
 
 Run from the project root:
     python -m app.etl.rebuild_vector_db
 
-Requires OPENAI_API_KEY to be set in .env or environment.
+Requires DASHSCOPE_API_KEY to be set in .env or environment.
 Reads:  data/food_vector_db/food_recipes_1000.json
 Writes: data/food_vector_db/index.faiss
         data/food_vector_db/index.pkl  (overwrites existing files)
@@ -45,8 +45,8 @@ def build_document(record: dict) -> Document:
 def main():
     ensure_dotenv_loaded()
 
-    if not os.getenv("OPENAI_API_KEY"):
-        raise EnvironmentError("OPENAI_API_KEY is not set.")
+    if not os.getenv("DASHSCOPE_API_KEY"):
+        raise EnvironmentError("DASHSCOPE_API_KEY is not set.")
 
     logger.info("Loading source data from %s ...", SOURCE_JSON)
     with open(SOURCE_JSON, "r", encoding="utf-8") as f:
@@ -55,10 +55,10 @@ def main():
 
     docs = [build_document(r) for r in records]
 
-    logger.info("Initialising OpenAI embedding model ...")
+    logger.info("Initialising Qwen embedding model ...")
     embeddings = get_embeddings()
 
-    logger.info("Building FAISS index (this will call the OpenAI API) ...")
+    logger.info("Building FAISS index (this will call the DashScope API) ...")
     vectorstore = FAISS.from_documents(docs, embeddings)
 
     logger.info("Saving FAISS index to %s ...", VECTOR_DB_PATH)
